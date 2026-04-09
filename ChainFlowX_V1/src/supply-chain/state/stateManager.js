@@ -1,5 +1,5 @@
 import { classifyEvent } from '../ai/gemmaAI.js';
-import { runPipeline as runGraphPipeline, propagateRipple } from '../graph/dependencyGraph.js';
+import { propagateRipple } from '../graph/dependencyGraph.js';
 import { calculateRouteRisk, updateRouteStatuses } from '../engine/riskScoring.js';
 import { matchRoutesToEvent } from '../engine/disruptionMatcher.js';
 import { calcAltRoute } from '../engine/altRouteCalc.js';
