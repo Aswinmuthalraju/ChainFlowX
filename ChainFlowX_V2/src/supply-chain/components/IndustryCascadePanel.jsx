@@ -3,9 +3,9 @@ import React from 'react';
 export default function IndustryCascadePanel({ industryCascade }) {
   if (!industryCascade?.length) {
     return (
-      <div className="panel opacity-60">
-        <h2 className="panel-title">INDUSTRY CASCADE</h2>
-        <div className="flex flex-col items-center py-4 gap-2">
+      <div className="panel opacity-60 ic-panel-body">
+        <h2 className="panel-title ic-panel-header">INDUSTRY CASCADE</h2>
+        <div className="ic-panel-scroll flex flex-col items-center justify-start py-4 gap-2">
           <div className="flex items-center gap-2 text-[10px] font-mono text-gray-600">
             <div className="w-2 h-2 rounded-sm bg-cfx-border" />
             <div className="w-8 h-px bg-cfx-border" />
@@ -41,15 +41,15 @@ export default function IndustryCascadePanel({ industryCascade }) {
   };
 
   return (
-    <div className="panel">
-      <div className="flex items-center justify-between mb-2">
+    <div className="panel ic-panel-body">
+      <div className="flex items-center justify-between mb-2 ic-panel-header">
         <h2 className="panel-title mb-0">INDUSTRY CASCADE</h2>
         <span className="text-[9px] font-mono text-cfx-accent">
           {industryCascade.length} SECTORS AT RISK
         </span>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 ic-panel-scroll">
         {industryCascade.map((industry, idx) => {
           const colors = colorMap[industry.riskLevel] || colorMap.MODERATE;
 
@@ -117,7 +117,7 @@ export default function IndustryCascadePanel({ industryCascade }) {
         })}
       </div>
 
-      <div className="mt-3 text-[9px] font-mono text-gray-700 text-center pt-2 border-t border-cfx-border">
+      <div className="ic-panel-footer mt-3 text-[9px] font-mono text-gray-700 text-center pt-2 border-t border-cfx-border">
         Cascade-depth gated · Minifies false alarm rate
       </div>
     </div>

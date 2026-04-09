@@ -517,16 +517,24 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
   }, [eventState?.classified?.nearestChokepoint, globeReady]);
 
   useEffect(() => {
-    const handleResize = () => {
-      if (globeRef.current && containerRef.current) {
-        const cw = containerRef.current.clientWidth || window.innerWidth;
-        const ch = containerRef.current.clientHeight || window.innerHeight;
-        globeRef.current.width(cw).height(ch);
-      }
+    if (!containerRef.current || typeof ResizeObserver === 'undefined') return;
+
+    const resizeGlobe = () => {
+      if (!containerRef.current || !globeRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      globeRef.current.width(rect.width);
+      globeRef.current.height(rect.height);
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+
+    const observer = new ResizeObserver(() => {
+      resizeGlobe();
+    });
+
+    observer.observe(containerRef.current);
+    resizeGlobe();
+
+    return () => observer.disconnect();
+  }, [globeReady]);
 
   return (
     <div
@@ -534,7 +542,8 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: '100vh',
+        minHeight: 0,
+        flex: 1,
         background: '#060a0f',
       }}
     >
@@ -579,8 +588,8 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
           top: 0,
           left: 0,
           width: '100%',
-          height: '100vh',
-          minHeight: '100vh',
+          height: '100%',
+          minHeight: 0,
           zIndex: 1,
           opacity: mapMode === '2d' ? 0 : 1,
           pointerEvents: mapMode === '2d' ? 'none' : 'auto',
