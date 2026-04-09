@@ -54,3 +54,28 @@ export const DEMO_EVENTS = [
     type: 'earthquake',
   },
 ];
+
+const SEVERITY_VARIANTS = {
+  cyclone:    ['Category 3', 'Category 4', 'Category 5', 'severe', 'intense'],
+  conflict:   ['escalating', 'intensifying', 'renewed', 'coordinated', 'sustained'],
+  blockage:   ['400-meter', '380-meter', '350-meter', 'ultra-large', 'giant'],
+  sanctions:  ['expanded', 'new', 'sweeping', 'emergency', 'targeted'],
+  strike:     ['full', 'rolling', 'indefinite', 'snap', 'nationwide'],
+  earthquake: ['7.4', '7.1', '7.6', '6.9', '7.2'],
+};
+
+export function liveifyDemoEvent(event) {
+  const variants = SEVERITY_VARIANTS[event.type] || ['significant', 'major', 'severe'];
+  const pick = variants[Math.floor(Math.random() * variants.length)];
+  const ts = new Date().toUTCString();
+  return {
+    ...event,
+    id: `${event.id}-${Date.now()}`,
+    description: `[Live report ${ts}] ` + event.description.replace(
+      /severe|critical|major|significant|400-meter|7\.4|full|new|escalating/i,
+      pick
+    ),
+    lat: event.lat + (Math.random() - 0.5) * 0.8,
+    lng: event.lng + (Math.random() - 0.5) * 0.8,
+  };
+}

@@ -5,7 +5,7 @@ import { synthesizeStrategicInsight } from './supply-chain/ai/qwenAI.js';
 import { PORTS } from './supply-chain/data/ports.js';
 import { ROUTES } from './supply-chain/data/routes.js';
 import { CHOKEPOINTS } from './supply-chain/data/chokepoints.js';
-import { DEMO_EVENTS } from './supply-chain/data/disruptions.js';
+import { DEMO_EVENTS, liveifyDemoEvent } from './supply-chain/data/disruptions.js';
 
 import SupplyChainGlobe from './supply-chain/components/SupplyChainGlobe.jsx';
 import RippleScorePanel from './supply-chain/components/RippleScorePanel.jsx';
@@ -150,7 +150,7 @@ export default function App() {
     } else {
       setActiveScene(scene.n);
       const evt = DEMO_EVENT_MAP[scene.key];
-      if (evt) handleEventTrigger(evt);
+      if (evt) handleEventTrigger(liveifyDemoEvent(evt));
     }
   };
 
@@ -163,7 +163,7 @@ export default function App() {
     const sceneMap = { cyclone: 2, blockage: 3, strike: 4, conflict: 5, earthquake: null };
     setActiveScene(sceneMap[val] ?? null);
     const evt = DEMO_EVENT_MAP[val];
-    if (evt) handleEventTrigger(evt);
+    if (evt) handleEventTrigger(liveifyDemoEvent(evt));
   };
 
   const handleGenerateInsight = async () => {

@@ -54,7 +54,7 @@ Top Alert: ${eventState?.cascadeAlerts?.[0]?.message || 'None'}
 
   try {
     const url = import.meta.env.VITE_QWEN_URL;
-    const model = import.meta.env.VITE_QWEN_MODEL || 'llama3:latest';
+    const model = import.meta.env.VITE_QWEN_MODEL || 'qwen3:8b';
     if (!url) {
         throw new Error("VITE_QWEN_URL no defined");
     }

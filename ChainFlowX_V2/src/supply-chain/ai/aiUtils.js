@@ -9,7 +9,7 @@ export function safeParseAIJSON(rawText, fallback) {
   } catch (e1) {
     // Strategy 2: Extract first {...}
     try {
-      const match = rawText.match(/\{[\s\S]*?\}/);
+      const match = rawText.match(/\{[\s\S]*\}/);
       if (match) {
         return JSON.parse(match[0]);
       }

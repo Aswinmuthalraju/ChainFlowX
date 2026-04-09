@@ -19,7 +19,8 @@
       "Read(//c/Users/Aswin/Documents/Code/Dev//**)",
       "Read(//c/Users/Aswin/Documents/Code/Dev/**)",
       "Bash(xargs grep:*)",
-      "Bash(ls /c/Users/Aswin/Documents/Code/Dev/ChainFlowX/ChainFlowX_V1/worldmonitor/src/services/supply-chain*)"
+      "Bash(ls /c/Users/Aswin/Documents/Code/Dev/ChainFlowX/ChainFlowX_V1/worldmonitor/src/services/supply-chain*)",
+      "Bash(python3:*)"
     ]
   }
 }

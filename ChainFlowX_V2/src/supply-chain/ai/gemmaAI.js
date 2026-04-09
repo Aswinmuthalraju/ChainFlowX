@@ -1,3 +1,4 @@
+import { buildChatCompletionsUrl } from './openaiCompat.js';
 import { safeParseAIJSON } from './aiUtils.js';
 
 const CLASSIFY_CACHE = new Map();
@@ -70,13 +71,14 @@ Description: ${description}
   try {
     const url = import.meta.env.VITE_GEMMA_URL;
     if (!url) {
-        throw new Error("VITE_GEMMA_URL no defined");
+        throw new Error("VITE_GEMMA_URL not defined — set it in .env");
     }
-    const response = await fetch(`${url}/v1/chat/completions`, {
+    const model = import.meta.env.VITE_GEMMA_MODEL || 'gemma4:e4b';
+    const response = await fetch(buildChatCompletionsUrl(url), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gemma4:e4b',
+        model,
         messages: [{ role: 'user', content: promptText }],
         temperature: 0.1,
         max_tokens: 400
