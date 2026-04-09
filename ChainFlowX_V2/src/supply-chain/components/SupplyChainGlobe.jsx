@@ -1,6 +1,7 @@
-import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle, useMemo } from 'react';
 import Globe from 'globe.gl';
 import { VESSEL_COLORS } from '../data/transportMaritime.js';
+import { DEFAULT_18_ROUTES } from '../data/default18Routes.js';
 
 // ── 2D flat map (SVG equirectangular radar display) ──────────────────────────
 function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
@@ -41,7 +42,17 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
       viewBox={`0 0 ${W} ${H}`}
       style={{ width: '100%', height: '100%', display: 'block', background: '#060a0f' }}
     >
-      <rect x="0" y="0" width={W} height={H} fill="#060a0f" />
+      <rect x="0" y="0" width={W} height={H} fill="#050b12" />
+
+      {/* Stylized continent silhouettes (geographic cue; not chart/graph grid alone) */}
+      <g opacity={0.14} fill="#6b7d8f">
+        <ellipse cx="235" cy="128" rx="102" ry="98" />
+        <ellipse cx="278" cy="305" rx="58" ry="118" />
+        <ellipse cx="518" cy="168" rx="62" ry="152" />
+        <ellipse cx="712" cy="138" rx="132" ry="108" />
+        <ellipse cx="832" cy="362" rx="68" ry="44" />
+        <ellipse cx="432" cy="398" rx="38" ry="30" />
+      </g>
 
       {latLines.map((lat, i) => {
         const y = toY(lat);
@@ -127,7 +138,7 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
                 fontSize="7"
                 fontFamily="Space Mono, monospace"
               >
-                {cp.id}
+                {cp.name.length > 22 ? `${cp.name.slice(0, 20)}…` : cp.name}
               </text>
             </g>
           );
@@ -174,16 +185,31 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
     liveAircraft = [],
     visibleRail = [],
     visiblePipelines = [],
+    onGlobeInitError,
   },
   ref,
 ) {
   const containerRef = useRef();
   const globeRef = useRef();
   const [globeReady, setGlobeReady] = useState(0);
+  const [globeInitFailed, setGlobeInitFailed] = useState(false);
   const onInteractRef = useRef(onGlobeUserInteract);
+  const onGlobeErrorRef = useRef(onGlobeInitError);
   useEffect(() => {
     onInteractRef.current = onGlobeUserInteract;
   }, [onGlobeUserInteract]);
+  useEffect(() => {
+    onGlobeErrorRef.current = onGlobeInitError;
+  }, [onGlobeInitError]);
+
+  const displayRoutes = useMemo(() => {
+    if (routes && routes.length > 0) return routes;
+    return DEFAULT_18_ROUTES;
+  }, [routes]);
+
+  useEffect(() => {
+    console.log('[ChainFlowX] Display routes:', displayRoutes.length, 'Chokepoints:', chokepoints?.length ?? 0);
+  }, [displayRoutes.length, chokepoints?.length]);
 
   useImperativeHandle(
     ref,
@@ -195,50 +221,28 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
   );
 
   useEffect(() => {
+    if (!containerRef.current) return;
     const container = containerRef.current;
-    if (!container) return;
+    let globe = null;
+    const onPointer = () => onInteractRef.current?.();
 
-    let cancelled = false;
-    let instance = null;
-    let attempts = 0;
-
-    const initGlobe = () => {
-      if (cancelled || instance) return;
-      attempts++;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-
-      console.log(`[ChainFlowX] Globe init attempt ${attempts}: ${w}×${h}`);
-
-      if (w === 0 || h === 0) {
-        if (attempts < 40) {
-          requestAnimationFrame(initGlobe);
-        } else {
-          console.error('[ChainFlowX] Globe init failed — container still 0×0 after 40 rAF attempts');
-        }
-        return;
-      }
-
-      // V1-style: mount first, then configure
-      let globe;
-      try {
-        globe = Globe()(container);
-      } catch (err) {
-        console.error('[ChainFlowX] Globe() constructor threw:', err);
-        return;
-      }
+    try {
+      globe = Globe()(container);
+      const w = container.clientWidth || window.innerWidth;
+      const h = container.clientHeight || window.innerHeight;
+      console.log('[ChainFlowX] Globe initialized', w, '×', h);
 
       globe
-        .width(w)
-        .height(h)
         .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
         .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
         .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
         .showAtmosphere(true)
-        .atmosphereColor('#1a6bff')
-        .atmosphereAltitude(0.15)
+        .atmosphereColor('#4466cc')
+        .atmosphereAltitude(0.18)
         .backgroundColor('rgba(0,0,0,0)')
-        .showGraticules(false);
+        .showGraticules(false)
+        .width(w)
+        .height(h);
 
       globe.pointOfView({ lat: 10, lng: 80, altitude: 2.2 }, 0);
 
@@ -255,56 +259,42 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
         controls.dampingFactor = 0.1;
       }
 
-      const onPointer = () => onInteractRef.current?.();
       container.addEventListener('mousedown', onPointer);
       container.addEventListener('touchstart', onPointer, { passive: true });
 
-      instance = globe;
       globeRef.current = globe;
+      setGlobeInitFailed(false);
       setGlobeReady((n) => n + 1);
-      console.log(`[ChainFlowX] Globe initialized successfully at ${w}×${h}`);
 
-      instance._cfxCleanupPointer = () => {
-        container.removeEventListener('mousedown', onPointer);
-        container.removeEventListener('touchstart', onPointer);
-      };
-    };
-
-    // Small timeout to let layout fully settle (belt-and-suspenders alongside rAF)
-    const timerId = setTimeout(() => requestAnimationFrame(initGlobe), 50);
-
-    const ro = new ResizeObserver(() => {
-      if (!globeRef.current || !container) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      if (w > 0 && h > 0) {
-        globeRef.current.width(w).height(h);
-      }
-    });
-    ro.observe(container);
+      const canvas = container.querySelector('canvas');
+      console.log('[ChainFlowX] Globe canvas present:', !!canvas, canvas?.width, '×', canvas?.height);
+    } catch (err) {
+      console.error('[ChainFlowX] Globe failed:', err);
+      setGlobeInitFailed(true);
+      onGlobeErrorRef.current?.();
+      return () => {};
+    }
 
     return () => {
-      cancelled = true;
-      clearTimeout(timerId);
-      ro.disconnect();
-      if (instance?._cfxCleanupPointer) instance._cfxCleanupPointer();
+      container.removeEventListener('mousedown', onPointer);
+      container.removeEventListener('touchstart', onPointer);
       try {
-        const renderer = instance?.renderer?.();
+        const renderer = globe?.renderer?.();
         if (renderer) renderer.dispose();
       } catch (_) {
         /* ignore */
       }
-      if (instance?._destructor) instance._destructor();
+      if (globe?._destructor) globe._destructor();
       globeRef.current = null;
     };
   }, []);
 
   useEffect(() => {
-    if (!globeRef.current || !routes) return;
+    if (!globeRef.current || !displayRoutes.length) return;
     const globe = globeRef.current;
 
     globe
-      .arcsData(routes)
+      .arcsData(displayRoutes)
       .arcStartLat((d) => d.from.lat)
       .arcStartLng((d) => d.from.lng)
       .arcEndLat((d) => d.to.lat)
@@ -329,7 +319,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
         </div>
       `,
       );
-  }, [routes, onRouteSelect, globeReady]);
+  }, [displayRoutes, onRouteSelect, globeReady]);
 
   useEffect(() => {
     if (!globeRef.current) return;
@@ -529,7 +519,9 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
   useEffect(() => {
     const handleResize = () => {
       if (globeRef.current && containerRef.current) {
-        globeRef.current.width(containerRef.current.clientWidth).height(containerRef.current.clientHeight);
+        const cw = containerRef.current.clientWidth || window.innerWidth;
+        const ch = containerRef.current.clientHeight || window.innerHeight;
+        globeRef.current.width(cw).height(ch);
       }
     };
     window.addEventListener('resize', handleResize);
@@ -539,18 +531,44 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
   return (
     <div
       style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        zIndex: 0,
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        minHeight: '100vh',
         background: '#060a0f',
       }}
     >
+      {globeInitFailed && (
+        <div
+          style={{
+            position: 'absolute',
+            zIndex: 20,
+            top: '40%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            padding: '10px 16px',
+            background: 'rgba(11,17,24,0.95)',
+            border: '1px solid rgba(255,184,0,0.45)',
+            color: '#ffb800',
+            fontFamily: "'Space Mono', monospace",
+            fontSize: '11px',
+            maxWidth: 'min(420px, 92vw)',
+            textAlign: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          Globe unavailable — fallback to 2D mode
+        </div>
+      )}
+
       {mapMode === '2d' && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 5 }}>
-          <FlatMap2D routes={routes} chokepoints={chokepoints} eventState={eventState} onRouteSelect={onRouteSelect} />
+          <FlatMap2D
+            routes={displayRoutes}
+            chokepoints={chokepoints}
+            eventState={eventState}
+            onRouteSelect={onRouteSelect}
+          />
         </div>
       )}
 
@@ -561,11 +579,9 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
           top: 0,
           left: 0,
           width: '100%',
-          height: '100%',
-          minHeight: '600px',
-          display: 'block',
-          background: '#000010',
-          zIndex: 0,
+          height: '100vh',
+          minHeight: '100vh',
+          zIndex: 1,
           opacity: mapMode === '2d' ? 0 : 1,
           pointerEvents: mapMode === '2d' ? 'none' : 'auto',
           transition: 'opacity 0.3s',

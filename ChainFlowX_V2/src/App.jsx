@@ -5,7 +5,7 @@ import { synthesizeStrategicInsight } from './supply-chain/ai/qwenAI.js';
 import { PORTS } from './supply-chain/data/ports.js';
 import { ROUTES } from './supply-chain/data/routes.js';
 import { CHOKEPOINTS } from './supply-chain/data/chokepoints.js';
-import { startLiveEventFeed } from './supply-chain/data/liveEventFeed.js';
+import { startLiveEventFeed, liveArticleToPipelineEvent } from './supply-chain/data/liveEventFeed.js';
 import {
   startAllTransportTracking,
   stopAllTransportTracking,
@@ -20,6 +20,8 @@ import DNAMatchPanel from './supply-chain/components/DNAMatchPanel.jsx';
 import IndustryCascadePanel from './supply-chain/components/IndustryCascadePanel.jsx';
 import RouteDetailPanel from './supply-chain/components/RouteDetailPanel.jsx';
 import StrategicInsightPanel from './supply-chain/components/StrategicInsightPanel.jsx';
+import SupplyChainMonitor from './supply-chain/components/SupplyChainMonitor.jsx';
+import StrategicRiskOverview from './supply-chain/components/StrategicRiskOverview.jsx';
 import LiveNewsTicker from './supply-chain/components/LiveNewsTicker.jsx';
 import FeedStatusPanel from './supply-chain/components/FeedStatusPanel.jsx';
 import HeaderBar from './supply-chain/components/HeaderBar.jsx';
@@ -65,6 +67,7 @@ export default function App() {
     rail: true,
     pipelines: true,
   });
+  const [globeUnavailable, setGlobeUnavailable] = useState(false);
 
   const isLoadingRef = useRef(false);
   const intelligenceRef = useRef(intelligenceOn);
@@ -73,6 +76,10 @@ export default function App() {
   const globeRef = useRef(null);
   const lastGlobeInteractRef = useRef(0);
   const trackingRefs = useRef({});
+  /** After a successful auto-started pipeline, blocks duplicate auto-fire on RSS refresh. */
+  const didAutoInitRef = useRef(false);
+  /** Set only by the auto-select effect so handleEventTrigger can commit didAutoInit after guards. */
+  const autoInitPendingRef = useRef(false);
 
   useEffect(() => {
     isLoadingRef.current = isLoading;
@@ -118,6 +125,8 @@ export default function App() {
       if (!graph) return;
 
       if (!event) {
+        didAutoInitRef.current = false;
+        autoInitPendingRef.current = false;
         setEventState(null);
         setRoutes(ROUTES.map((r) => ({ ...r, currentRisk: r.baseRisk, status: 'normal' })));
         setSelectedRoute(null);
@@ -125,7 +134,15 @@ export default function App() {
         return;
       }
 
-      if (!intelligenceRef.current) return;
+      if (!intelligenceRef.current) {
+        autoInitPendingRef.current = false;
+        return;
+      }
+
+      if (autoInitPendingRef.current) {
+        didAutoInitRef.current = true;
+        autoInitPendingRef.current = false;
+      }
 
       addGlobeRing(event);
 
@@ -143,6 +160,7 @@ export default function App() {
         const near = findNearestRoute(ROUTES, event.lat, event.lng);
         if (near) setSelectedRoute(near);
       } catch (err) {
+        didAutoInitRef.current = false;
         console.error('[ChainFlowX] Pipeline error:', err);
       } finally {
         setIsLoading(false);
@@ -154,6 +172,17 @@ export default function App() {
   useEffect(() => {
     pipelineHandlerRef.current = handleEventTrigger;
   }, [handleEventTrigger]);
+
+  useEffect(() => {
+    if (!graph || !intelligenceOn || isLoading || eventState) return;
+    if (!liveArticles.length || didAutoInitRef.current) return;
+    const first =
+      liveArticles.find(
+        (a) => (a.displayRelevance ?? a.keyword?.supplyChainRelevance ?? 0) >= 0.35,
+      ) || liveArticles[0];
+    autoInitPendingRef.current = true;
+    void handleEventTrigger(liveArticleToPipelineEvent(first));
+  }, [graph, intelligenceOn, isLoading, eventState, liveArticles, handleEventTrigger]);
 
   useEffect(() => {
     const refs = startAllTransportTracking({
@@ -297,11 +326,36 @@ export default function App() {
             mapMode={mapMode}
             eventRings={globeRings}
             onGlobeUserInteract={handleGlobeUserInteract}
+            onGlobeInitError={() => {
+              setGlobeUnavailable(true);
+              setMapMode('2d');
+            }}
             liveVessels={visibleVessels}
             liveAircraft={visibleAircraft}
             visibleRail={visibleRail}
             visiblePipelines={visiblePipelines}
           />
+        )}
+
+        {globeUnavailable && (
+          <div
+            style={{
+              position: 'fixed',
+              bottom: 52,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 25,
+              padding: '8px 14px',
+              background: 'rgba(11,17,24,0.95)',
+              border: '1px solid rgba(255,184,0,0.4)',
+              color: '#ffb800',
+              fontFamily: "'Space Mono', monospace",
+              fontSize: '10px',
+              pointerEvents: 'none',
+            }}
+          >
+            Globe unavailable — fallback to 2D mode
+          </div>
         )}
 
         <LayerToggle
@@ -414,6 +468,8 @@ export default function App() {
             <>
               <RippleScorePanel rippleScore={eventState?.rippleScore} />
               <DNAMatchPanel dnaMatch={eventState?.dnaMatch?.[0]} />
+              <SupplyChainMonitor eventState={eventState} articles={liveArticles} />
+              <StrategicRiskOverview eventState={eventState} articles={liveArticles} />
               {eventState?.rippleScore && (
                 <IndustryCascadePanel industryCascade={eventState?.industryCascade} />
               )}

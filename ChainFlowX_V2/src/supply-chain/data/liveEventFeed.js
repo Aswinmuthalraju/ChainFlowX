@@ -280,14 +280,38 @@ export function liveArticleToPipelineEvent(article) {
       lat = hint.lat;
       lng = hint.lng;
     } else {
-      lat = 0;
-      lng = 0;
+      const t = `${article.headline || ''} ${article.description || ''}`.toLowerCase();
+      let centroid = null;
+      for (const [country, c] of Object.entries(COUNTRY_CENTROIDS)) {
+        if (t.includes(country)) {
+          centroid = c;
+          break;
+        }
+      }
+      if (centroid) {
+        lat = centroid.lat;
+        lng = centroid.lng;
+        radius = 200;
+      } else {
+        lat = 0;
+        lng = 0;
+        radius = 200;
+      }
     }
-    radius = 200;
   }
+
+  if (!Number.isFinite(lat)) lat = 0;
+  if (!Number.isFinite(lng)) lng = 0;
+  if (!Number.isFinite(radius) || radius <= 0) radius = 200;
 
   const tierSev = { critical: 0.92, high: 0.78, medium: 0.58, low: 0.42, info: 0.28 };
   const severity = tierSev[kw.tier] ?? 0.5;
+  const supplyChainRelevance =
+    typeof article.displayRelevance === 'number'
+      ? article.displayRelevance
+      : typeof kw.supplyChainRelevance === 'number'
+        ? kw.supplyChainRelevance
+        : 0.5;
 
   return {
     id: article.id,
@@ -300,6 +324,7 @@ export function liveArticleToPipelineEvent(article) {
     url: article.url,
     source: article.source,
     severity,
+    supplyChainRelevance,
   };
 }
 
@@ -721,6 +746,8 @@ export function startLiveEventFeed(options) {
       onArticlesUpdate(merged);
     }
 
+    // High-relevance articles: dispatch normalized event to App — UI runs runPipeline()
+    // (full chain: disruption geography → risk → correlation/ripple → DNA → cascade).
     if (typeof onPipelineEvent === 'function') {
       for (const a of merged) {
         const rel = a.displayRelevance ?? a.keyword?.supplyChainRelevance ?? 0;
