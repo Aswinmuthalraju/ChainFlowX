@@ -11,7 +11,8 @@
   --bg:       #060a0f;
   --surface:  #0b1118;
   --surface2: #111820;
-  --border:   #1e2d3d;
+  --border:   rgba(30, 45, 61, 0.8);
+  --border-bright: rgba(0, 212, 255, 0.25);
   --accent:   #00d4ff;
   --accent2:  #ff6b35;
   --green:    #00ff88;
@@ -272,14 +273,172 @@ body::before {
 }
 
 /* ─────────────────────────────────────────────
-   Dashboard layout — 3 columns
+   Dashboard layout — 70/30 grid
 ───────────────────────────────────────────── */
-.dashboard {
+.dashboard-container {
   display: flex;
   flex: 1;
   overflow: hidden;
+  gap: 0;
+  position: relative;
+  min-height: 0; /* Ensures flex kids can trigger overflow-y */
 }
 
+.resizer-horizontal {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.2s;
+  z-index: 100;
+  border-left: 1px solid var(--border);
+}
+
+.resizer-horizontal:hover, .resizer-horizontal.resizing {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.left-section {
+  /* flex-basis handled by inline styles in App.jsx */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  overflow: hidden;
+  min-width: 200px;
+}
+
+.bottom-metrics-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
+}
+
+.right-sidebar {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.globe-container {
+  /* height handled by inline styles/flex in App.jsx */
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border-bright);
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+}
+
+.resizer-vertical {
+  height: 4px;
+  cursor: row-resize;
+  background: transparent;
+  transition: background 0.2s;
+  z-index: 100;
+  border-top: 1px solid var(--border);
+}
+
+.resizer-vertical:hover, .resizer-vertical.resizing {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.metrics-row-1,
+.metrics-row-2 {
+  display: flex;
+  gap: 12px;
+  flex: 0 0 auto; /* Stop shrinking */
+  min-height: 280px; /* Ensure a stable height */
+}
+
+.metrics-row-1 > *,
+.metrics-row-2 > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-panel {
+  padding: 12px;
+}
+
+.live-feed-panel {
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.live-feed-content {
+  overflow-y: auto;
+  flex: 1;
+  padding-bottom: 8px;
+}
+
+/* Custom scrollbar for live feed */
+.live-feed-content::-webkit-scrollbar {
+  width: 4px;
+}
+.live-feed-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.live-feed-content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+.live-feed-content::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+.supply-chain-panel {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
+
+/* Empty panel placeholder boxes */
+.empty-panel-box {
+  display: flex;
+  flex-direction: column;
+}
+
+.empty-panel-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 12px;
+  padding: 24px;
+  opacity: 0.4;
+}
+
+.empty-panel-icon {
+  font-size: 2rem;
+  color: var(--accent);
+  opacity: 0.5;
+}
+
+.empty-panel-text {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.6;
+  max-width: 180px;
+}
+
+/* Legacy classes kept for compatibility */
 .left-panel {
   width: 240px;
   flex-shrink: 0;
@@ -557,14 +716,16 @@ body::before {
 ───────────────────────────────────────────── */
 .panel {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-bright);
   border-radius: 2px;
   padding: 12px;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
 .panel:hover {
-  border-color: rgba(0, 212, 255, 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
 }
 
 .panel-title {

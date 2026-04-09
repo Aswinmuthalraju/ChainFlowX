@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { buildGraph, validateGraph } from './supply-chain/graph/graphUtils.js';
 import { runPipeline } from './supply-chain/state/stateManager.js';
 import { synthesizeStrategicInsight } from './supply-chain/ai/qwenAI.js';
@@ -44,6 +44,12 @@ export default function App() {
   const [intelligenceOn, setIntelligenceOn] = useState(true);
   const [activeScene, setActiveScene]       = useState(null);
 
+  // Layout states
+  const [sidebarWidth, setSidebarWidth]     = useState(30); // percentage
+  const [globeHeight, setGlobeHeight]       = useState(450); // pixels
+  const [isResizingH, setIsResizingH]       = useState(false);
+  const [isResizingV, setIsResizingV]       = useState(false);
+
   // Build + validate graph on mount
   useEffect(() => {
     const g = buildGraph(PORTS, ROUTES, CHOKEPOINTS);
@@ -53,6 +59,54 @@ export default function App() {
     setGraph(g);
     setGraphValid(valid);
   }, []);
+
+  // ── Resizing Logic ──────────────────────────────────────────────────────
+  const startResizingH = useCallback((e) => {
+    e.preventDefault();
+    setIsResizingH(true);
+  }, []);
+
+  const startResizingV = useCallback((e) => {
+    e.preventDefault();
+    setIsResizingV(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizingH(false);
+    setIsResizingV(false);
+  }, []);
+
+  const resize = useCallback((e) => {
+    if (isResizingH) {
+      const newWidth = 100 - (e.clientX / window.innerWidth) * 100;
+      setSidebarWidth(Math.min(Math.max(newWidth, 15), 60));
+    }
+    if (isResizingV) {
+      const globeContainer = document.querySelector('.globe-container');
+      if (globeContainer) {
+        const top = globeContainer.getBoundingClientRect().top;
+        const newHeight = e.clientY - top;
+        setGlobeHeight(Math.min(Math.max(newHeight, 200), 1200));
+      }
+    }
+  }, [isResizingH, isResizingV]);
+
+  useEffect(() => {
+    if (isResizingH || isResizingV) {
+      document.body.style.userSelect = 'none';
+      window.addEventListener('mousemove', resize);
+      window.addEventListener('mouseup', stopResizing);
+    } else {
+      document.body.style.userSelect = 'auto';
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    }
+    return () => {
+      document.body.style.userSelect = 'auto';
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [isResizingH, isResizingV, resize, stopResizing]);
 
   // ── Pipeline handler ────────────────────────────────────────────────────
   const handleEventTrigger = async (event) => {
@@ -247,48 +301,140 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Main dashboard ──────────────────────────────────────────────── */}
-      <main className="dashboard">
+      {/* ── Main dashboard — Grid Layout ─────────────────────────────── */}
+      <main className="dashboard-container">
 
-        {/* ── Left panel — scene buttons ── */}
-        <aside className="left-panel">
+        {/* ── LEFT SECTION (70% variable) ── */}
+        <div className="left-section" style={{ flex: 1, minWidth: 0 }}>
 
-          {/* Scene trigger buttons */}
-          <div className="scene-section-label">Demo Scenarios</div>
-          {SCENES.map(scene => (
-            <button
-              key={scene.n}
-              className={`trigger-btn ${activeScene === scene.n ? 'trigger-btn--active' : ''}`}
-              onClick={() => handleSceneSelect(scene)}
-              disabled={(!intelligenceOn && scene.key !== 'reset') || isLoading}
-            >
-              <span className="scene-num">SCENE 0{scene.n}</span>
-              <span className="scene-label-text">{scene.label}</span>
-              <span className="scene-meta">{scene.meta}</span>
-            </button>
-          ))}
-
-          {/* Route detail — only when no active event */}
-          {selectedRoute && !showRouteInRight && (
-            <div className="route-detail-wrapper">
-              <div className="route-detail-header">
-                <span className="route-detail-label">Route Detail</span>
-                <button
-                  className="route-close-btn"
-                  onClick={() => setSelectedRoute(null)}
-                >×</button>
-              </div>
-              <RouteDetailPanel
-                route={selectedRoute}
-                altRoute={eventState?.altRoutes?.[selectedRoute.id]}
-                onClose={() => setSelectedRoute(null)}
+          {/* Globe */}
+          <div className="globe-container" style={{ flex: `0 0 ${globeHeight}px` }}>
+            {graph && (
+              <SupplyChainGlobe
+                routes={routes}
+                chokepoints={CHOKEPOINTS}
+                eventState={eventState}
+                onRouteSelect={setSelectedRoute}
+                mapMode={mapMode}
               />
-            </div>
-          )}
+            )}
 
-          {/* Stats block at bottom when idle */}
-          {!selectedRoute && !eventState && (
-            <div className="left-empty-state">
+            {/* Loading — bottom progress bar */}
+            {isLoading && (
+              <>
+                <div className="pipeline-progress">
+                  <div className="pipeline-progress-fill" />
+                </div>
+                <div className="loading-text-overlay">
+                  ANALYZING SUPPLY CHAIN · 6-LAYER PIPELINE
+                </div>
+              </>
+            )}
+
+            {/* Globe status bar */}
+            <div className="globe-status-bar">
+              <span>GDELT · LIVE</span>
+              <span className="status-sep">·</span>
+              <span style={{ color: graphValid ? '#00ff88' : '#ff3b3b' }}>
+                GRAPH {graphValid ? 'OK' : 'ERR'}
+              </span>
+              <span className="status-sep">·</span>
+              <span style={{ color: eventState ? '#00d4ff' : 'var(--muted)' }}>
+                {eventState ? 'PIPELINE ACTIVE' : 'MONITORING'}
+              </span>
+              <span className="status-sep">·</span>
+              <span>{ROUTES.length} ROUTES · {CHOKEPOINTS.length} CHOKEPOINTS · 2 AI</span>
+            </div>
+          </div>
+
+          {/* Vertical Resizer for Globe */}
+          <div className={`resizer-vertical ${isResizingV ? 'resizing' : ''}`} onMouseDown={startResizingV} />
+
+          <div className="bottom-metrics-scroll">
+            {/* Metrics Row 1: Ripple Score + Disruption Fingerprint */}
+            <div className="metrics-row-1">
+            <RippleScorePanel rippleScore={eventState?.rippleScore} />
+            <DNAMatchPanel dnaMatch={eventState?.dnaMatch?.[0]} />
+          </div>
+
+          {/* Metrics Row 2: Industry Cascade + Strategic Risk Overview */}
+          <div className="metrics-row-2">
+            <IndustryCascadePanel industryCascade={eventState?.industryCascade} />
+            {selectedRoute ? (
+              <div className="panel">
+                <div className="route-detail-header" style={{ marginBottom: 8 }}>
+                  <span className="route-detail-label">Strategic Risk Overview</span>
+                  <button
+                    className="route-close-btn"
+                    onClick={() => setSelectedRoute(null)}
+                  >×</button>
+                </div>
+                <RouteDetailPanel
+                  route={selectedRoute}
+                  altRoute={eventState?.altRoutes?.[selectedRoute.id]}
+                  onClose={() => setSelectedRoute(null)}
+                />
+              </div>
+            ) : (
+              <div className="panel empty-panel-box">
+                <h2 className="panel-title">STRATEGIC RISK OVERVIEW</h2>
+                <div className="empty-panel-content">
+                  <div className="empty-panel-icon">◈</div>
+                  <div className="empty-panel-text">Select a route on the globe to view strategic risk analysis</div>
+                </div>
+              </div>
+            )}
+          </div>
+          </div>
+        </div>
+
+        {/* Horizontal Resizer for Sidebar */}
+        <div className={`resizer-horizontal ${isResizingH ? 'resizing' : ''}`} onMouseDown={startResizingH} />
+
+        {/* ── RIGHT SIDEBAR (30% variable) ── */}
+        <div className="right-sidebar" style={{ width: `${sidebarWidth}%`, flex: 'none' }}>
+
+          {/* AI Panel — Strategic Intelligence + Forecasts */}
+          <div className="ai-panel">
+            <StrategicInsightPanel
+              eventState={eventState}
+              onGenerateInsight={handleGenerateInsight}
+              insightLoading={insightLoading}
+            />
+            {!eventState?.classified && (
+              <div className="panel empty-panel-box">
+                <h2 className="panel-title">STRATEGIC AI INTELLIGENCE</h2>
+                <div className="empty-panel-content">
+                  <div className="empty-panel-icon">⬡</div>
+                  <div className="empty-panel-text">Trigger an event to activate Qwen3 strategic reasoning</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Live Intelligence Feed — Scene Buttons */}
+          <div className="live-feed-panel">
+            <div className="scene-section-label">Live Intelligence Feed</div>
+            <div className="live-feed-content">
+              {SCENES.map(scene => (
+                <button
+                  key={scene.n}
+                  className={`trigger-btn ${activeScene === scene.n ? 'trigger-btn--active' : ''}`}
+                  onClick={() => handleSceneSelect(scene)}
+                  disabled={(!intelligenceOn && scene.key !== 'reset') || isLoading}
+                >
+                  <span className="scene-num">SCENE 0{scene.n}</span>
+                  <span className="scene-label-text">{scene.label}</span>
+                  <span className="scene-meta">{scene.meta}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Supply Chain Panel — Stats */}
+          <div className="supply-chain-panel">
+            <div className="panel">
+              <h2 className="panel-title">SUPPLY CHAIN</h2>
               <div className="left-empty-stats">
                 <div className="left-stat">
                   <span className="left-stat-num">{ROUTES.length}</span>
@@ -304,84 +450,11 @@ export default function App() {
                 </div>
               </div>
               <div className="left-empty-hint">
-                Select a scenario above to begin analysis
+                Select a scenario to begin analysis
               </div>
             </div>
-          )}
-        </aside>
-
-        {/* ── Globe center ── */}
-        <section className="globe-section">
-          {graph && (
-            <SupplyChainGlobe
-              routes={routes}
-              chokepoints={CHOKEPOINTS}
-              eventState={eventState}
-              onRouteSelect={setSelectedRoute}
-              mapMode={mapMode}
-            />
-          )}
-
-          {/* Loading — bottom progress bar */}
-          {isLoading && (
-            <>
-              <div className="pipeline-progress">
-                <div className="pipeline-progress-fill" />
-              </div>
-              <div className="loading-text-overlay">
-                ANALYZING SUPPLY CHAIN · 6-LAYER PIPELINE
-              </div>
-            </>
-          )}
-
-          {/* Globe status bar */}
-          <div className="globe-status-bar">
-            <span>GDELT · LIVE</span>
-            <span className="status-sep">·</span>
-            <span style={{ color: graphValid ? '#00ff88' : '#ff3b3b' }}>
-              GRAPH {graphValid ? 'OK' : 'ERR'}
-            </span>
-            <span className="status-sep">·</span>
-            <span style={{ color: eventState ? '#00d4ff' : 'var(--muted)' }}>
-              {eventState ? 'PIPELINE ACTIVE' : 'MONITORING'}
-            </span>
-            <span className="status-sep">·</span>
-            <span>{ROUTES.length} ROUTES · {CHOKEPOINTS.length} CHOKEPOINTS · 2 AI</span>
           </div>
-        </section>
-
-        {/* ── Right intelligence panel ── */}
-        <aside className="right-panel">
-          {showRouteInRight ? (
-            <div className="route-detail-wrapper" style={{ padding: 0, borderTop: 'none' }}>
-              <div className="route-detail-header" style={{ marginBottom: 8 }}>
-                <span className="route-detail-label">Route Analysis</span>
-                <button
-                  className="route-close-btn"
-                  onClick={() => setSelectedRoute(null)}
-                >×</button>
-              </div>
-              <RouteDetailPanel
-                route={selectedRoute}
-                altRoute={eventState?.altRoutes?.[selectedRoute.id]}
-                onClose={() => setSelectedRoute(null)}
-              />
-            </div>
-          ) : (
-            <>
-              <RippleScorePanel rippleScore={eventState?.rippleScore} />
-              <DNAMatchPanel dnaMatch={eventState?.dnaMatch?.[0]} />
-              {eventState?.rippleScore && (
-                <IndustryCascadePanel industryCascade={eventState?.industryCascade} />
-              )}
-              <StrategicInsightPanel
-                eventState={eventState}
-                onGenerateInsight={handleGenerateInsight}
-                insightLoading={insightLoading}
-              />
-            </>
-          )}
-        </aside>
+        </div>
       </main>
     </div>
   );
