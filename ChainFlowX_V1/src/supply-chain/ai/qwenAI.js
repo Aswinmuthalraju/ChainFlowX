@@ -75,8 +75,10 @@ Top Alert: ${eventState?.cascadeAlerts?.[0]?.message || 'None'}
     }
     
     const data = await response.json();
-    const rawText = data.choices?.[0]?.message?.content || "";
-    
+    const rawText = (data.choices?.[0]?.message?.content || '')
+      .replace(/<think>[\s\S]*?<\/think>/gi, '')
+      .trim();
+
     const result = safeParseAIJSON(rawText, null);
     if (!result) {
         return templateSynthesisFallback(eventState);

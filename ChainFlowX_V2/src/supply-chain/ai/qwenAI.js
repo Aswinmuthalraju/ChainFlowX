@@ -1,88 +1,133 @@
-import { buildChatCompletionsUrl } from './openaiCompat.js';
 import { safeParseAIJSON } from './aiUtils.js';
+
+function normalizeUrl(base) {
+  const t = String(base ?? '').trim().replace(/\/+$/, '');
+  return t.endsWith('/v1') ? t : `${t}/v1`;
+}
 
 export function templateSynthesisFallback(eventState) {
   const { classified, rippleScore, dnaMatch, altRoutes } = eventState;
-  
-  const score = rippleScore?.raw || 0;
+  const score = parseFloat(rippleScore?.score) || 0;
   let urgency = 'MODERATE';
   if (score >= 8) urgency = 'IMMEDIATE';
   else if (score >= 6) urgency = 'HIGH';
 
-  let costImpact = '$500-$800/container';
-  let reroute = 'Consider standard alternative routings listed in available models.';
   const topAlt = altRoutes && Object.values(altRoutes)[0];
-  if (topAlt) {
-    costImpact = `$${topAlt.costDelta}/container estimate (+/- 10%)`;
-    reroute = topAlt.summary;
-  }
+  const costImpact = topAlt
+    ? `+$${topAlt.costDelta}/container (+/- 15% confidence interval)`
+    : '$500–$800/container (estimated)';
+  const reroute = topAlt
+    ? topAlt.summary
+    : 'Evaluate alternative routing based on real-time vessel positions.';
 
-  const d1 = dnaMatch?.[0]?.outcomes?.[0]?.event || 'Initial impact wave propagates';
-  const d3 = dnaMatch?.[0]?.outcomes?.[1]?.event || 'Secondary disruptions emerge in network';
-  const d7 = dnaMatch?.[0]?.outcomes?.[2]?.event || 'Extended cascade effects realized globally';
+  const d1 = dnaMatch?.[0]?.outcomes?.[0]?.event || 'Initial disruption impact propagates across primary routes';
+  const d3 = dnaMatch?.[0]?.outcomes?.[1]?.event || 'Secondary congestion emerges at alternative hub ports';
+  const d7 = dnaMatch?.[0]?.outcomes?.[2]?.event || 'Extended cascade effects reach downstream manufacturers';
 
   return {
-    strategicAnalysis: `Event classification ${classified?.eventType.toUpperCase() || 'UNKNOWN'} triggered. The current situational profile maps closely to the ${dnaMatch?.[0]?.name || 'historical baseline'} pattern. Network resilience parameters indicate structural strain.`,
+    strategicAnalysis: `${classified?.eventType?.toUpperCase() || 'DISRUPTION'} event detected with severity ${(classified?.severity ?? 0).toFixed(2)}. Ripple Score ${rippleScore?.score}/10 (${rippleScore?.label}) indicates cascade across ${rippleScore?.derivation?.inputs?.cascadeDepth || 0} network hops. Pattern matches ${dnaMatch?.[0]?.name || 'historical baseline'} at ${dnaMatch?.[0]?.similarity || 0}% similarity.`,
     forecast: { day1: d1, day3: d3, day7: d7 },
     reroutingAdvice: reroute,
     costImpact,
-    urgency
+    urgency,
+    alternativeRoutes: topAlt ? [{
+      route: topAlt.recommended,
+      delayDays: topAlt.delayDays,
+      costDelta: topAlt.costDelta,
+      congestionNote: topAlt.congestionNote || null,
+    }] : [],
+    _source: 'template_fallback',
   };
 }
 
 export async function synthesizeStrategicInsight(eventState) {
-  const { classified, rippleScore, dnaMatch, altRoutes, industryCascade, cascadeAlerts, affectedRoutes } = eventState || {};
-  const bestAlt = Object.values(altRoutes || {})[0];
+  const qwenUrl = import.meta.env.VITE_QWEN_URL;
+  if (!qwenUrl) {
+    console.warn('[ChainFlowX Qwen] VITE_QWEN_URL not set — using template fallback. Set it in .env to enable AI synthesis.');
+    return templateSynthesisFallback(eventState);
+  }
 
-  const promptText = `
-You are the Qwen3 Strategic Synthesizer for a Supply Chain Intelligence Platform.
-Synthesize a concise executive readout. Ground all numbers in the data below — do not invent figures.
-Return ONLY valid JSON, no preamble, no markdown fences.
+  const apiUrl = `${normalizeUrl(qwenUrl)}/chat/completions`;
+  const model = import.meta.env.VITE_QWEN_MODEL || 'qwen3:8b';
+
+  const { classified, rippleScore, dnaMatch, altRoutes, industryCascade, cascadeAlerts, affectedRoutes } = eventState || {};
+  const allAlts = Object.values(altRoutes || {});
+
+  const promptText = `You are a supply chain strategic intelligence analyst. Your job is to deliver ACTIONABLE decisions — not summaries.
+The operator is looking at a live disruption RIGHT NOW. They need to know: what to do, which routes to switch to, how much it costs, and what happens if they wait.
+
+Return ONLY valid JSON, no preamble, no markdown fences, no <think> blocks.
+
 Schema:
 {
-  "strategicAnalysis": "2-3 sentences",
-  "forecast": { "day1": "string", "day3": "string", "day7": "string" },
-  "reroutingAdvice": "specific route recommendation",
-  "costImpact": "$/container estimate with confidence interval",
-  "urgency": "IMMEDIATE|HIGH|MODERATE"
+  "strategicAnalysis": "3 sentences: what happened, why it matters, what the window for action is",
+  "forecast": {
+    "day1": "specific operational impact in first 24 hours",
+    "day3": "freight/port impact at 72 hours with estimated numbers",
+    "day7": "downstream manufacturing/inventory impact at 7 days"
+  },
+  "reroutingAdvice": "specific route name, estimated extra days, estimated cost per container — be exact",
+  "alternativeRoutes": [
+    { "route": "route name", "delayDays": number, "costDelta": number, "viability": "HIGH|MEDIUM|LOW", "note": "why this is recommended or not" }
+  ],
+  "costImpact": "$/container with confidence interval and what drives the range",
+  "urgency": "IMMEDIATE|HIGH|MODERATE",
+  "actionItems": [
+    "Specific action 1 — who does it, by when",
+    "Specific action 2",
+    "Specific action 3"
+  ]
 }
 
-Event Intelligence Briefing:
-Event type: ${classified?.eventType} | Severity: ${(classified?.severity ?? 0).toFixed(2)} | Region: ${classified?.region}
-Chokepoint: ${classified?.nearestChokepoint || 'unknown'} | Confidence: ${(classified?.confidence ?? 0).toFixed(2)}
+LIVE DISRUPTION INTELLIGENCE BRIEFING:
+
+Event: ${classified?.eventType?.toUpperCase()} | Severity: ${(classified?.severity ?? 0).toFixed(2)}/1.0 | Region: ${classified?.region}
+Chokepoint affected: ${classified?.nearestChokepoint || 'unknown'}
+AI confidence: ${(classified?.confidence ?? 0).toFixed(2)}
+
 Ripple Score: ${rippleScore?.score}/10 (${rippleScore?.label})
-Cascade depth: ${rippleScore?.derivation?.inputs?.cascadeDepth ?? 0} hops | Trade at risk: $${rippleScore?.derivation?.inputs?.tradeVolumeM ?? 0}M/day
-DNA Match: ${dnaMatch?.[0]?.similarity ?? 0}% match to ${dnaMatch?.[0]?.name || 'none'} — ${dnaMatch?.[0]?.freightRateImpact || 'no freight impact data'}
-Historical D+1: ${dnaMatch?.[0]?.outcomes?.[0]?.event || 'N/A'}
-Historical D+3: ${dnaMatch?.[0]?.outcomes?.[1]?.event || 'N/A'}
-Historical D+7: ${dnaMatch?.[0]?.outcomes?.[2]?.event || 'N/A'}
-Best alt route: ${bestAlt?.summary || 'no alternative calculated'}
-Industries at risk: ${(industryCascade || []).map(i => `${i.sector} (D+${i.daysToRisk})`).join(', ') || 'none at current cascade depth'}
-Top cascade alert: ${cascadeAlerts?.[0]?.message || 'none'}
-Affected route count: ${affectedRoutes?.length || 0}
-`;
+Cascade depth: ${rippleScore?.derivation?.inputs?.cascadeDepth ?? 0} network hops
+Trade volume at risk: $${rippleScore?.derivation?.inputs?.tradeVolumeM ?? 0}M/day
+Port absorption remaining: ${(((rippleScore?.derivation?.inputs?.portAbsorption ?? 0.7)) * 100).toFixed(0)}%
+Time to alternative routing: ${rippleScore?.derivation?.inputs?.timeToAlternativeDays ?? 0} days
+
+Historical DNA match: ${dnaMatch?.[0]?.similarity ?? 0}% similarity to "${dnaMatch?.[0]?.name || 'none'}"
+Historical freight impact: ${dnaMatch?.[0]?.freightRateImpact || 'N/A'}
+Historical trade volume impact: ${dnaMatch?.[0]?.tradeVolumeImpact || 'N/A'}
+What happened historically at D+1: ${dnaMatch?.[0]?.outcomes?.[0]?.event || 'N/A'}
+What happened historically at D+3: ${dnaMatch?.[0]?.outcomes?.[1]?.event || 'N/A'}
+What happened historically at D+7: ${dnaMatch?.[0]?.outcomes?.[2]?.event || 'N/A'}
+
+Available alternative routes (ranked by computed cost):
+${allAlts.length > 0
+  ? allAlts.map((a, i) => `  ${i + 1}. ${a.recommended} — +${a.delayDays} days, +$${a.costDelta}/container${a.congestionNote ? ' ⚠ ' + a.congestionNote : ''}`).join('\n')
+  : '  No alternatives pre-computed — recommend emergency assessment'}
+
+Industries now at risk:
+${(industryCascade || []).length > 0
+  ? (industryCascade || []).map(i => `  - ${i.sector}: ${i.companies?.join(', ')} — exposure in ${i.daysToRisk} days`).join('\n')
+  : '  None flagged at current cascade depth'}
+
+Active cascade alerts: ${cascadeAlerts?.[0]?.message || 'none'}
+Total affected routes: ${affectedRoutes?.length || 0}
+
+Based on this data, provide the strategic decision briefing. Be specific. Use the numbers above.`;
 
   try {
-    const url = import.meta.env.VITE_QWEN_URL;
-    if (!url) {
-        throw new Error("VITE_QWEN_URL not defined — set it in .env");
-    }
-    const model = import.meta.env.VITE_QWEN_MODEL || 'qwen3:8b';
-    const response = await fetch(buildChatCompletionsUrl(url), {
+    console.log(`[ChainFlowX Qwen] Calling ${model} at ${apiUrl}`);
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model,
-        options: { think: true },
         messages: [{ role: 'user', content: promptText }],
         temperature: 0.3,
-        max_tokens: 600
-      })
+        max_tokens: 900,
+        options: { think: true },
+      }),
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status} from Qwen endpoint`);
 
     const data = await response.json();
     const rawText = (data.choices?.[0]?.message?.content || '')
@@ -90,12 +135,18 @@ Affected route count: ${affectedRoutes?.length || 0}
       .trim();
 
     const result = safeParseAIJSON(rawText, null);
+
     if (!result) {
-        return templateSynthesisFallback(eventState);
+      console.warn('[ChainFlowX Qwen] JSON parse failed — using template fallback');
+      return templateSynthesisFallback(eventState);
     }
+
+    result._source = 'qwen_llm';
+    console.log(`[ChainFlowX Qwen] ✅ Strategic insight generated (urgency: ${result.urgency})`);
     return result;
+
   } catch (e) {
-    console.warn('[ChainFlowX] qwenAI offline or failed. Using fallback:', e);
+    console.warn('[ChainFlowX Qwen] ❌ LLM call failed:', e.message, '— using template fallback. Check ngrok tunnel B.');
     return templateSynthesisFallback(eventState);
   }
 }

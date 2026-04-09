@@ -50,7 +50,7 @@ Description: ${description}
 
   try {
     const url = import.meta.env.VITE_GEMMA_URL;
-    const model = import.meta.env.VITE_GEMMA_MODEL || 'gemma2:9b';
+    const model = import.meta.env.VITE_GEMMA_MODEL || 'gemma4:e4b';
     if (!url) {
         throw new Error("VITE_GEMMA_URL no defined");
     }
