@@ -288,31 +288,19 @@ export default function SupplyChainGlobe({ routes, chokepoints, eventState, onRo
 
   // ── Resize ────────────────────────────────────────────────────────────────
   useEffect(() => {
-<<<<<<< HEAD
     if (!containerRef.current) return;
 
     const resizeObserver = new ResizeObserver(() => {
       if (globeRef.current && containerRef.current) {
-=======
-    const handleResize = () => {
-      if (mapMode === '3d' && globeRef.current && containerRef.current) {
->>>>>>> edd075e1d89315a4269b0c264f36cd385950981e
         globeRef.current
           .width(containerRef.current.clientWidth)
           .height(containerRef.current.clientHeight);
       }
-<<<<<<< HEAD
     });
 
     resizeObserver.observe(containerRef.current);
     return () => resizeObserver.disconnect();
   }, []);
-=======
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [mapMode]);
->>>>>>> edd075e1d89315a4269b0c264f36cd385950981e
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', background: '#060a0f' }}>

@@ -324,7 +324,7 @@ body::before {
   flex-direction: column;
   gap: 0;
   background: var(--surface);
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--border-bright);
   overflow-y: auto;
   min-width: 0;
 }
@@ -373,7 +373,9 @@ body::before {
 }
 
 .live-feed-panel {
-  border-top: 1px solid var(--border);
+  border: 1px solid var(--border-bright);
+  border-radius: 2px;
+  background: rgba(10, 16, 24, 0.65);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -473,12 +475,13 @@ body::before {
 ───────────────────────────────────────────── */
 .scene-section-label {
   font-family: var(--mono);
-  font-size: 0.55rem;
-  letter-spacing: 0.2em;
+  font-size: 0.56rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--muted);
-  padding: 10px 12px 6px;
+  padding: 10px 12px 8px;
   border-bottom: 1px solid var(--border);
+  background: rgba(6, 10, 15, 0.55);
 }
 
 .trigger-btn {
@@ -487,9 +490,9 @@ body::before {
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--border);
-  padding: 9px 12px;
+  padding: 10px 12px;
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.16s, border-color 0.16s;
   color: var(--text);
   font-family: var(--sans);
   position: relative;
@@ -497,6 +500,7 @@ body::before {
 
 .trigger-btn:hover:not(:disabled) {
   background: var(--surface2);
+  border-bottom-color: rgba(0, 212, 255, 0.18);
 }
 
 .trigger-btn:disabled {
@@ -720,21 +724,21 @@ body::before {
   border-radius: 2px;
   padding: 12px;
   transition: border-color 0.2s, box-shadow 0.2s;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.34);
 }
 
 .panel:hover {
   border-color: var(--accent);
-  box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.08);
 }
 
 .panel-title {
   font-family: var(--mono);
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   color: var(--muted);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
 }
@@ -743,10 +747,15 @@ body::before {
   content: '';
   display: inline-block;
   width: 2px;
-  height: 9px;
+  height: 5px;
   background: var(--accent);
   margin-right: 7px;
   flex-shrink: 0;
+}
+
+.panel-title--compact {
+  font-size: 0.54rem;
+  letter-spacing: 0.14em;
 }
 
 /* ─────────────────────────────────────────────

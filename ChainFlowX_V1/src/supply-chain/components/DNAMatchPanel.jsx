@@ -104,7 +104,7 @@ export default function DNAMatchPanel({ dnaMatch }) {
     >
       {/* Header row */}
       <div className="flex items-center justify-between mb-3">
-        <h2 className="panel-title mb-0">DISRUPTION DNA™</h2>
+        <h2 className="panel-title panel-title--compact mb-0">DISRUPTION DNA™</h2>
         {dnaMatch && (
           <span
             className={`text-[9px] font-mono px-2 py-0.5 border rounded transition-all duration-500 ${confidenceStyle}`}
@@ -121,7 +121,7 @@ export default function DNAMatchPanel({ dnaMatch }) {
           {/* Similarity meter row */}
           <div className="flex items-center gap-4 mb-4">
             <div
-              className="text-5xl font-bold font-display text-cfx-accent tabular-nums leading-none"
+              className="text-4xl font-bold font-display text-cfx-accent tabular-nums leading-none"
               style={{ textShadow: '0 0 25px rgba(0,212,255,0.45)' }}
             >
               {displaySim}%

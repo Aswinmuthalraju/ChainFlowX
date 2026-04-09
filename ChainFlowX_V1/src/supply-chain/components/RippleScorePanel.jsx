@@ -106,7 +106,7 @@ export default function RippleScorePanel({ rippleScore }) {
     <div className="panel border-t-2 border-t-cfx-accent">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="panel-title mb-0">RIPPLE SCORE™</h2>
+        <h2 className="panel-title panel-title--compact mb-0">RIPPLE SCORE™</h2>
         <div className="text-[9px] font-mono text-gray-600 uppercase tracking-widest">
           Propagation Index
         </div>
@@ -115,7 +115,7 @@ export default function RippleScorePanel({ rippleScore }) {
       {/* Big score */}
       <div className="flex items-end gap-3 mb-4">
         <span
-          className={`text-7xl font-bold font-display leading-none transition-colors duration-500 ${scoreColor}`}
+          className={`text-6xl font-bold font-display leading-none transition-colors duration-500 ${scoreColor}`}
           style={{
             textShadow: rippleScore?.raw >= 8
               ? '0 0 30px rgba(239,68,68,0.5)'
