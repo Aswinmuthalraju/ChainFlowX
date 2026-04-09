@@ -1,4 +1,5 @@
 import { safeParseAIJSON } from './aiUtils.js';
+import { buildChatCompletionsUrl } from './openaiCompat.js';
 
 export function templateSynthesisFallback(eventState) {
   const { classified, rippleScore, dnaMatch, altRoutes } = eventState;
@@ -53,15 +54,16 @@ Top Alert: ${eventState?.cascadeAlerts?.[0]?.message || 'None'}
 
   try {
     const url = import.meta.env.VITE_QWEN_URL;
+    const model = import.meta.env.VITE_QWEN_MODEL || 'llama3:latest';
     if (!url) {
         throw new Error("VITE_QWEN_URL no defined");
     }
-    const response = await fetch(`${url}/v1/chat/completions`, {
+    const apiUrl = buildChatCompletionsUrl(url);
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'qwen3:8b',
-        options: { think: true },
+        model,
         messages: [{ role: 'user', content: promptText }],
         temperature: 0.3,
         max_tokens: 600

@@ -1,4 +1,5 @@
 import { safeParseAIJSON } from './aiUtils.js';
+import { buildChatCompletionsUrl } from './openaiCompat.js';
 
 export function keywordClassifierFallback(headline, description) {
   const text = (headline + ' ' + description).toLowerCase();
@@ -49,14 +50,16 @@ Description: ${description}
 
   try {
     const url = import.meta.env.VITE_GEMMA_URL;
+    const model = import.meta.env.VITE_GEMMA_MODEL || 'gemma2:9b';
     if (!url) {
         throw new Error("VITE_GEMMA_URL no defined");
     }
-    const response = await fetch(`${url}/v1/chat/completions`, {
+    const apiUrl = buildChatCompletionsUrl(url);
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'gemma4:e4b',
+        model,
         messages: [{ role: 'user', content: promptText }],
         temperature: 0.1,
         max_tokens: 400

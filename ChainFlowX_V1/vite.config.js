@@ -7,8 +7,8 @@ export default defineConfig({
   server: { port: 3000 },
   resolve: {
     alias: {
-      // three-globe v2.45 imports three/webgpu + three/tsl which don't exist
-      // in three v0.160. Redirect to no-op stubs so the bundle won't break.
+      // Keep no-op aliases for optional WebGPU entrypoints imported by globe deps.
+      // This avoids bundling/runtime failures when those modules are referenced.
       'three/webgpu': path.resolve('./src/stubs/three-webgpu.js'),
       'three/tsl':    path.resolve('./src/stubs/three-tsl.js'),
     },

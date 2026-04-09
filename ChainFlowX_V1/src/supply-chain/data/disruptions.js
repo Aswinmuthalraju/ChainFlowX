@@ -27,6 +27,15 @@ export const DEMO_EVENTS = [
     type: 'blockage',
   },
   {
+    id: 'evt-sanctions-hormuz',
+    label: 'Sanctions — Strait of Hormuz',
+    headline: 'New Sanctions Regime Disrupts Tanker Clearance in Strait of Hormuz',
+    description: 'A new sanctions package has triggered immediate compliance checks and vessel screening delays across Hormuz-bound energy traffic. Multiple carriers report 24-72 hour holds while insurers reassess risk exposure.',
+    lat: 26.5,
+    lng: 56.5,
+    type: 'sanctions',
+  },
+  {
     id: 'evt-strike-la',
     label: 'Strike — LA/Long Beach',
     headline: 'ILWU Workers Strike at Los Angeles and Long Beach — All Operations Halted',

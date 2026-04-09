@@ -11,8 +11,8 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "globe.gl": "^2.26.0",
-    "three": "^0.160.0",
+    "globe.gl": "2.27.2",
+    "three": "0.165.0",
     "deck.gl": "^8.9.0",
     "maplibre-gl": "^4.0.0"
   },

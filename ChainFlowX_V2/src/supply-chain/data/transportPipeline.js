@@ -1,0 +1,81 @@
+export const PIPELINE_CORRIDORS = [
+  {
+    id: 'PIPE-01',
+    name: 'Trans-Arabian Pipeline',
+    from: { name: 'Dhahran', lat: 26.3, lng: 50.1 },
+    to: { name: 'Yanbu', lat: 24.09, lng: 38.05 },
+    waypoints: [
+      { lat: 26.0, lng: 46.0 },
+      { lat: 25.0, lng: 42.0 },
+    ],
+    commodity: 'oil',
+    capacityBpd: 1800000,
+    status: 'normal',
+    type: 'pipeline',
+    color: '#ff4400',
+  },
+  {
+    id: 'PIPE-02',
+    name: 'Russia–Europe Gas (Nord Stream Corridor)',
+    from: { name: 'Vyborg', lat: 60.71, lng: 28.74 },
+    to: { name: 'Lubmin', lat: 54.14, lng: 13.65 },
+    waypoints: [
+      { lat: 58.0, lng: 20.0 },
+      { lat: 56.0, lng: 15.0 },
+    ],
+    commodity: 'lng',
+    capacityBpd: 0,
+    status: 'blocked',
+    type: 'pipeline',
+    color: '#ff4400',
+  },
+  {
+    id: 'PIPE-03',
+    name: 'BTC Pipeline (Baku–Tbilisi–Ceyhan)',
+    from: { name: 'Baku', lat: 40.41, lng: 49.87 },
+    to: { name: 'Ceyhan', lat: 36.84, lng: 35.76 },
+    waypoints: [
+      { lat: 41.69, lng: 44.83 },
+      { lat: 40.0, lng: 40.0 },
+    ],
+    commodity: 'oil',
+    capacityBpd: 1200000,
+    status: 'normal',
+    type: 'pipeline',
+    color: '#ff4400',
+  },
+  {
+    id: 'PIPE-04',
+    name: 'Druzhba Pipeline (Russia–Europe)',
+    from: { name: 'Almetyevsk', lat: 54.9, lng: 52.3 },
+    to: { name: 'Hamburg', lat: 53.55, lng: 9.99 },
+    waypoints: [
+      { lat: 55.0, lng: 45.0 },
+      { lat: 52.0, lng: 28.0 },
+      { lat: 52.0, lng: 18.0 },
+    ],
+    commodity: 'oil',
+    capacityBpd: 2000000,
+    status: 'warning',
+    type: 'pipeline',
+    color: '#ff4400',
+  },
+  {
+    id: 'PIPE-05',
+    name: 'Trans-Alaska Pipeline',
+    from: { name: 'Prudhoe Bay', lat: 70.26, lng: -148.35 },
+    to: { name: 'Valdez', lat: 61.13, lng: -146.35 },
+    waypoints: [
+      { lat: 66.56, lng: -148.5 },
+      { lat: 63.74, lng: -148.9 },
+    ],
+    commodity: 'oil',
+    capacityBpd: 500000,
+    status: 'normal',
+    type: 'pipeline',
+    color: '#ff4400',
+  },
+];
+
+export const getPipelineCorridors = () => PIPELINE_CORRIDORS;
+export const getPipelineByStatus = (status) => PIPELINE_CORRIDORS.filter((p) => p.status === status);
