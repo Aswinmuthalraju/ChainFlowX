@@ -278,6 +278,7 @@ body::before {
 .dashboard-container {
   display: flex;
   flex: 1;
+  align-items: stretch;
   overflow: hidden;
   gap: 0;
   position: relative;
@@ -302,16 +303,18 @@ body::before {
   /* flex-basis handled by inline styles in App.jsx */
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding: 12px;
   overflow: hidden;
   min-width: 200px;
+  min-height: 0;
+  height: 100%;
 }
 
 .bottom-metrics-scroll {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
@@ -322,15 +325,19 @@ body::before {
   flex: 3;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 10px;
   background: var(--surface);
   border-left: 1px solid var(--border-bright);
-  overflow-y: auto;
+  overflow: hidden;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  align-self: stretch;
 }
 
 .globe-container {
-  /* height handled by inline styles/flex in App.jsx */
+  width: 100%;
+  min-height: 0;
   position: relative;
   overflow: hidden;
   background: var(--bg);
@@ -354,22 +361,75 @@ body::before {
   box-shadow: 0 0 8px var(--accent);
 }
 
-.metrics-row-1,
-.metrics-row-2 {
-  display: flex;
+/* Top + bottom metrics: identical 2-col grid → pixel-aligned center seam */
+.dashboard-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  flex: 0 0 auto; /* Stop shrinking */
-  min-height: 280px; /* Ensure a stable height */
+  width: 100%;
+  flex: 0 0 auto;
+  min-height: 280px;
+  align-items: stretch;
 }
 
-.metrics-row-1 > *,
-.metrics-row-2 > * {
-  flex: 1;
+.dashboard-row > * {
   min-width: 0;
+  width: 100%;
+}
+
+/* Bottom row: equal-height strip (Industry Cascade + Strategic Risk / route detail) */
+.dashboard-row--bottom > .panel {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.dashboard-row--bottom > .wm-intelligence-panel {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.dashboard-row--bottom > .wm-intelligence-panel > .panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.dashboard-row--bottom > .panel.ic-panel-body .ic-panel-header {
+  flex-shrink: 0;
+}
+
+.dashboard-row--bottom > .panel.ic-panel-body .ic-panel-footer {
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.dashboard-row--bottom > .wm-intelligence-panel > .panel .sro-header {
+  flex-shrink: 0;
+}
+
+.dashboard-row--bottom > .wm-intelligence-panel > .panel .sro-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .ai-panel {
   padding: 12px;
+  flex-shrink: 0;
 }
 
 .live-feed-panel {
@@ -378,7 +438,20 @@ body::before {
   background: rgba(10, 16, 24, 0.65);
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
+}
+
+.live-feed-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.live-feed-panel .scene-section-label {
+  flex-shrink: 0;
 }
 
 .live-feed-content {
@@ -405,7 +478,11 @@ body::before {
 .supply-chain-panel {
   padding: 12px;
   border-top: 1px solid var(--border);
-  margin-top: auto;
+  flex-shrink: 0;
+  min-height: 220px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 /* Empty panel placeholder boxes */
@@ -1081,7 +1158,7 @@ body::before {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 10px 10px 16px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1104,6 +1181,94 @@ body::before {
   padding: 10px 12px;
   background: rgba(11, 17, 24, 0.98);
   border-bottom: 1px solid rgba(0, 255, 255, 0.12);
+}
+
+.wm-live-news-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wm-live-news-header-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.wm-feed-status {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.wm-feed-status-trigger {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: rgba(0, 212, 255, 0.08);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 2px;
+  padding: 5px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.wm-feed-status-trigger:hover {
+  background: rgba(0, 212, 255, 0.14);
+}
+
+.wm-feed-status-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(280px, 72vw);
+  max-height: 38vh;
+  overflow-y: auto;
+  padding: 8px 10px;
+  background: rgba(11, 17, 24, 0.98);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+}
+
+.wm-feed-status-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(30, 45, 61, 0.55);
+}
+
+.wm-feed-status-row:last-child {
+  border-bottom: none;
+}
+
+.wm-feed-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.wm-feed-status-row-text {
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  color: var(--muted);
+}
+
+.wm-feed-status-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.wm-feed-status-meta {
+  margin-top: 2px;
+  opacity: 0.88;
+  line-height: 1.35;
 }
 
 .wm-live-news-dot {
@@ -1147,10 +1312,40 @@ body::before {
 }
 
 .wm-live-news-scroll {
-  flex: 1;
-  overflow-y: auto;
+  flex: 1 1 auto;
   padding: 8px;
   min-height: 0;
+}
+
+.feed-scroll,
+.dashboard-row--bottom > .panel.ic-panel-body .ic-panel-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #00f5ff transparent;
+}
+
+.feed-scroll::-webkit-scrollbar,
+.dashboard-row--bottom > .panel.ic-panel-body .ic-panel-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.feed-scroll::-webkit-scrollbar-track,
+.dashboard-row--bottom > .panel.ic-panel-body .ic-panel-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.feed-scroll::-webkit-scrollbar-thumb,
+.dashboard-row--bottom > .panel.ic-panel-body .ic-panel-scroll::-webkit-scrollbar-thumb {
+  background: #00f5ff;
+  border-radius: 10px;
+  box-shadow: 0 0 6px #00f5ff;
+}
+
+.feed-scroll::-webkit-scrollbar-thumb:hover,
+.dashboard-row--bottom > .panel.ic-panel-body .ic-panel-scroll::-webkit-scrollbar-thumb:hover {
+  background: #00ffff;
 }
 
 .wm-live-news-empty {
@@ -1243,11 +1438,14 @@ body::before {
   }
 }
 
-.cfx-layer-toggle {
+.transport-overlay {
   position: absolute;
-  bottom: 50px;
-  right: 296px;
-  z-index: 22;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10;
+}
+
+.cfx-layer-toggle {
   min-width: 200px;
   padding: 10px 12px;
   background: rgba(6, 10, 15, 0.92);
@@ -1338,7 +1536,7 @@ body::before {
 .wm-ticker-track {
   display: flex;
   width: max-content;
-  animation: wmTickerMarquee 40s linear infinite;
+  animation: wmTickerMarquee 128s linear infinite;
 }
 
 .wm-ticker-content {

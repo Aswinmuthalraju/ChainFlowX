@@ -1,5 +1,26 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { liveArticleToPipelineEvent } from '../data/liveEventFeed.js';
+import { liveArticleToPipelineEvent, getFeedStatus } from '../data/liveEventFeed.js';
+
+const FEED_STATUS_SOURCES = new Set(['GDELT', 'Splash247', 'FreightWaves', "Lloyd's List"]);
+
+const FEED_DOT = {
+  fresh: { c: '#22c55e', pulse: true },
+  stale: { c: '#f59e0b', pulse: false },
+  very_stale: { c: '#ef4444', pulse: false },
+  error: { c: '#ef4444', blink: true },
+  disabled: { c: '#6b7280', pulse: false },
+  unknown: { c: '#6b7280', pulse: false },
+  pending: { c: '#6b7280', pulse: false },
+};
+
+function formatFeedAgo(ms) {
+  if (!ms) return '—';
+  const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}hr ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
 
 function timeAgo(ms) {
   if (!ms) return '—';
@@ -73,10 +94,34 @@ export default function LiveNewsTicker({
 }) {
   const list = articles.slice(0, maxItems);
   const scrollRef = useRef(null);
+  const feedStatusRef = useRef(null);
   const userScrollPausedRef = useRef(false);
   const scrollPauseTimerRef = useRef(null);
   const prevUrlsRef = useRef(new Set());
   const [flashUrls, setFlashUrls] = useState(() => new Set());
+  const [feedStatusOpen, setFeedStatusOpen] = useState(false);
+  const [feedStatusRows, setFeedStatusRows] = useState([]);
+
+  useEffect(() => {
+    const load = () => {
+      const all = getFeedStatus();
+      setFeedStatusRows(all.filter((r) => FEED_STATUS_SOURCES.has(r.name)));
+    };
+    load();
+    const id = window.setInterval(load, 30000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!feedStatusOpen) return;
+    const onDoc = (e) => {
+      if (feedStatusRef.current && !feedStatusRef.current.contains(e.target)) {
+        setFeedStatusOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [feedStatusOpen]);
 
   useEffect(() => {
     const urls = list.map((a) => a.url).filter(Boolean);
@@ -118,18 +163,66 @@ export default function LiveNewsTicker({
   return (
     <div className={shellClass}>
       <div className="wm-live-news-header">
-        <span className="wm-live-news-dot" />
-        <span className="wm-live-news-live">LIVE</span>
-        <span className="wm-live-news-title">INTELLIGENCE FEED</span>
-        <span className="wm-live-news-count">
-          [{articles.length}]
-        </span>
-        <div className="wm-live-news-sub">
-          Supply Chain · Updated {articles.length ? timeAgo(feedUpdatedAt || Date.now()) : '—'}
+        <div className="wm-live-news-header-row">
+          <div className="wm-live-news-header-main">
+            <span className="wm-live-news-dot" />
+            <span className="wm-live-news-live">LIVE</span>
+            <span className="wm-live-news-title">INTELLIGENCE FEED</span>
+            <span className="wm-live-news-count">[{articles.length}]</span>
+            <div className="wm-live-news-sub">
+              Supply Chain · Updated {articles.length ? timeAgo(feedUpdatedAt || Date.now()) : '—'}
+            </div>
+          </div>
+          <div className="wm-feed-status" ref={feedStatusRef}>
+            <button
+              type="button"
+              className="wm-feed-status-trigger"
+              onClick={() => setFeedStatusOpen((o) => !o)}
+              aria-expanded={feedStatusOpen}
+            >
+              Feed Status {feedStatusOpen ? '▲' : '▼'}
+            </button>
+            {feedStatusOpen ? (
+              <div className="wm-feed-status-panel" role="list">
+                {feedStatusRows.map((r) => {
+                  const spec = FEED_DOT[r.status] || FEED_DOT.unknown;
+                  const line2 =
+                    r.status === 'error' || r.status === 'disabled'
+                      ? r.nextRetry > 0
+                        ? `retry ${Math.ceil(r.nextRetry / 60000)}m · n=${r.articleCount}`
+                        : `err · n=${r.articleCount}`
+                      : `${r.status.toUpperCase().replace('_', ' ')} · ${formatFeedAgo(r.lastUpdated)} · n=${r.articleCount}`;
+                  return (
+                    <div key={r.sourceId} className="wm-feed-status-row" role="listitem">
+                      <span
+                        className="wm-feed-status-dot"
+                        style={{
+                          background: spec.c,
+                          animation: spec.pulse
+                            ? 'cfxFeedDotPulse 1.6s ease-in-out infinite'
+                            : spec.blink
+                              ? 'cfxFeedDotBlink 1.1s step-end infinite'
+                              : 'none',
+                        }}
+                      />
+                      <div className="wm-feed-status-row-text">
+                        <div className="wm-feed-status-name">{r.name}</div>
+                        <div className="wm-feed-status-meta">{line2}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <div className="wm-live-news-scroll" ref={scrollRef} onScroll={onScrollUser}>
+      <div
+        className="wm-live-news-scroll feed-scroll"
+        ref={scrollRef}
+        onScroll={onScrollUser}
+      >
         {!list.length && (
           <div className="wm-live-news-empty">Monitoring global feeds…</div>
         )}
@@ -205,6 +298,14 @@ export default function LiveNewsTicker({
         }
         .wm-live-news-item--enter {
           animation: wmNewsEnter 0.45s ease-out;
+        }
+        @keyframes cfxFeedDotPulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.15); opacity: 0.85; }
+        }
+        @keyframes cfxFeedDotBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.2; }
         }
       `}</style>
     </div>

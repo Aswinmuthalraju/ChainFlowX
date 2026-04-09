@@ -5,7 +5,7 @@ export default function LayerToggle({ layerVisibility, onToggle }) {
   const keys = ['vessels', 'aircraft', 'rail', 'pipelines'];
 
   return (
-    <div className="cfx-layer-toggle">
+    <div className="cfx-layer-toggle transport-overlay">
       <div className="cfx-layer-toggle-title">TRANSPORT LAYERS</div>
       {keys.map((key) => {
         const cfg = LAYER_CONFIG[key];

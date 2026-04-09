@@ -23,7 +23,6 @@ import StrategicInsightPanel from './supply-chain/components/StrategicInsightPan
 import SupplyChainMonitor from './supply-chain/components/SupplyChainMonitor.jsx';
 import StrategicRiskOverview from './supply-chain/components/StrategicRiskOverview.jsx';
 import LiveNewsTicker from './supply-chain/components/LiveNewsTicker.jsx';
-import FeedStatusPanel from './supply-chain/components/FeedStatusPanel.jsx';
 import HeaderBar from './supply-chain/components/HeaderBar.jsx';
 import TickerBar from './supply-chain/components/TickerBar.jsx';
 
@@ -318,8 +317,6 @@ export default function App() {
           alertCount={alertCount}
           isLive
           graphValid={graphValid}
-          intelligenceOn={intelligenceOn}
-          onIntelligenceToggle={setIntelligenceOn}
           mapMode={mapMode}
           onMapModeToggle={() => setMapMode((p) => (p === '3d' ? '2d' : '3d'))}
           isLoading={isLoading}
@@ -359,7 +356,10 @@ export default function App() {
       <main className="dashboard-container" style={{ paddingBottom: '32px' }}>
         {/* Left Section (Globe + Metrics) */}
         <div className="left-section" style={{ flex: 1, minWidth: 0 }}>
-          <div className="globe-container" style={{ flex: `0 0 ${globeHeight}px`, position: 'relative' }}>
+          <div
+            className="globe-container"
+            style={{ flex: `0 0 ${globeHeight}px`, position: 'relative', width: '100%', minHeight: 0 }}
+          >
             {graph && (
               <SupplyChainGlobe
                 ref={globeRef}
@@ -438,12 +438,12 @@ export default function App() {
           <div className={`resizer-vertical ${isResizingV ? 'resizing' : ''}`} onMouseDown={startResizingV} />
 
           <div className="bottom-metrics-scroll" style={{ flex: 1 }}>
-            <div className="metrics-row-1">
+            <div className="dashboard-row">
               <RippleScorePanel rippleScore={eventState?.rippleScore} />
               <DNAMatchPanel dnaMatch={eventState?.dnaMatch?.[0]} />
             </div>
 
-            <div className="metrics-row-2">
+            <div className="dashboard-row dashboard-row--bottom">
               <IndustryCascadePanel industryCascade={eventState?.industryCascade} />
               {selectedRoute ? (
                 <div className="panel">
@@ -460,9 +460,12 @@ export default function App() {
                   />
                 </div>
               ) : (
-                <div className="wm-intelligence-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <SupplyChainMonitor eventState={eventState} articles={liveArticles} />
-                  <StrategicRiskOverview eventState={eventState} articles={liveArticles} />
+                <div className="wm-intelligence-panel">
+                  <StrategicRiskOverview
+                    eventState={eventState}
+                    articles={liveArticles}
+                    feedUpdatedAt={feedUpdatedAt}
+                  />
                 </div>
               )}
             </div>
@@ -473,14 +476,13 @@ export default function App() {
 
         {/* Right Sidebar (Live Ticker + AI Integration) */}
         <div className="right-sidebar" style={{ width: `${sidebarWidth}%`, flex: 'none' }}>
-          
           <div className="ai-panel">
             <button
               type="button"
               className="trigger-btn"
               onClick={() => handleEventTrigger(null)}
               disabled={isLoading}
-              style={{ width: '100%', marginBottom: 12 }}
+              style={{ width: '100%', marginBottom: 10 }}
             >
               <span className="scene-num">RESET</span>
               <span className="scene-label-text">Clear active event</span>
@@ -492,9 +494,9 @@ export default function App() {
             />
           </div>
 
-          <div className="live-feed-panel" style={{ flex: 1, minHeight: 0, paddingBottom: '32px' }}>
+          <div className="live-feed-panel">
             <div className="scene-section-label">Live Threat Intelligence</div>
-            <div style={{ height: 'calc(100% - 24px)', overflow: 'hidden' }}>
+            <div className="live-feed-panel-body">
               <LiveNewsTicker
                 articles={liveArticles}
                 feedUpdatedAt={feedUpdatedAt}
@@ -508,11 +510,18 @@ export default function App() {
               />
             </div>
           </div>
+
+          <div className="supply-chain-panel">
+            <SupplyChainMonitor
+              eventState={eventState}
+              articles={liveArticles}
+              feedUpdatedAt={feedUpdatedAt}
+            />
+          </div>
         </div>
       </main>
 
       <TickerBar articles={liveArticles} />
-      <FeedStatusPanel />
     </div>
   );
 }

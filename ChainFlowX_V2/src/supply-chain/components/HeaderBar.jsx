@@ -6,8 +6,6 @@ export default function HeaderBar({
   alertCount = 0,
   isLive = true,
   graphValid = true,
-  intelligenceOn = true,
-  onIntelligenceToggle,
   mapMode = '3d',
   onMapModeToggle,
   isLoading = false,
@@ -43,19 +41,6 @@ export default function HeaderBar({
             <span className="wm-live-dot" /> LIVE
           </span>
         )}
-
-        <label className="intelligence-toggle" title="Toggle supply chain intelligence">
-          <input
-            type="checkbox"
-            checked={intelligenceOn}
-            onChange={(e) => onIntelligenceToggle?.(e.target.checked)}
-            className="sr-only"
-          />
-          <span className={`toggle-track ${intelligenceOn ? 'toggle-on' : ''}`}>
-            <span className="toggle-thumb" />
-          </span>
-          <span className={`toggle-label ${intelligenceOn ? 'text-cfx-accent' : 'text-gray-600'}`}>Intel</span>
-        </label>
 
         <button type="button" className="map-mode-toggle" onClick={() => onMapModeToggle?.()}>
           <span className={mapMode === '3d' ? 'map-mode-active' : ''}>3D</span>
