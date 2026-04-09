@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import Globe from 'globe.gl';
 
 // ── 2D flat map (SVG equirectangular radar display) ──────────────────────────
@@ -40,24 +40,35 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
     >
       <rect x="0" y="0" width={W} height={H} fill="#060a0f" />
 
+      <image
+        href="/textures/earth-topo-bathy.jpg"
+        x="0"
+        y="0"
+        width={W}
+        height={H}
+        preserveAspectRatio="none"
+        opacity="0.75"
+      />
+      <rect x="0" y="0" width={W} height={H} fill="rgba(6,10,15,0.32)" />
+
       {latLines.map((lat, i) => {
         const y = toY(lat);
         return i % 2 === 0
-          ? <rect key={`band${lat}`} x={0} y={y - 41.7} width={W} height={83.3} fill="rgba(14,22,35,0.4)" />
+          ? <rect key={`band${lat}`} x={0} y={y - 41.7} width={W} height={83.3} fill="rgba(9,14,23,0.26)" />
           : null;
       })}
 
       {latLines.map(lat => (
-        <line key={`lat${lat}`} x1={0} y1={toY(lat)} x2={W} y2={toY(lat)} stroke="#1e2d3d" strokeWidth="0.5" />
+        <line key={`lat${lat}`} x1={0} y1={toY(lat)} x2={W} y2={toY(lat)} stroke="rgba(152,185,212,0.2)" strokeWidth="0.6" />
       ))}
-      <line x1={0} y1={toY(0)} x2={W} y2={toY(0)} stroke="#1e2d3d" strokeWidth="1" />
+      <line x1={0} y1={toY(0)} x2={W} y2={toY(0)} stroke="rgba(152,185,212,0.34)" strokeWidth="1.2" />
       {lngLines.map(lng => (
-        <line key={`lng${lng}`} x1={toX(lng)} y1={0} x2={toX(lng)} y2={H} stroke="#1e2d3d" strokeWidth="0.5" />
+        <line key={`lng${lng}`} x1={toX(lng)} y1={0} x2={toX(lng)} y2={H} stroke="rgba(152,185,212,0.2)" strokeWidth="0.6" />
       ))}
-      <line x1={toX(0)} y1={0} x2={toX(0)} y2={H} stroke="#1e2d3d" strokeWidth="1" />
+      <line x1={toX(0)} y1={0} x2={toX(0)} y2={H} stroke="rgba(152,185,212,0.34)" strokeWidth="1.2" />
 
       {latLines.map(lat => (
-        <text key={`llbl${lat}`} x={4} y={toY(lat) - 2} fill="#1e2d3d" fontSize="8" fontFamily="Space Mono, monospace">
+        <text key={`llbl${lat}`} x={4} y={toY(lat) - 2} fill="rgba(192,214,230,0.55)" fontSize="8" fontFamily="Space Mono, monospace">
           {lat > 0 ? `${lat}N` : lat < 0 ? `${Math.abs(lat)}S` : 'EQ'}
         </text>
       ))}
@@ -81,7 +92,7 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
       {routes && routes.map(route => [route.from, route.to]).flat().filter((p, i, arr) =>
         arr.findIndex(q => q.name === p.name) === i
       ).map(port => (
-        <circle key={port.name} cx={toX(port.lng)} cy={toY(port.lat)} r={2.5} fill="#1e2d3d" stroke="#00d4ff" strokeWidth={0.7} opacity={0.8} />
+        <circle key={port.name} cx={toX(port.lng)} cy={toY(port.lat)} r={2.5} fill="#0a1420" stroke="#8ad9ff" strokeWidth={0.8} opacity={0.9} />
       ))}
 
       {chokepoints && chokepoints.map(cp => {
@@ -96,15 +107,15 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
               </>
             )}
             <circle cx={cx} cy={cy} r={isAffected ? 4.5 : 3} fill={isAffected ? '#ff3b3b' : '#00d4ff'} opacity={0.85} />
-            <text x={cx + 6} y={cy + 3} fill={isAffected ? '#ff3b3b' : '#5a7a8a'} fontSize="7" fontFamily="Space Mono, monospace">
-              {cp.id}
+            <text x={cx + 6} y={cy + 3} fill={isAffected ? '#ff3b3b' : '#9ec6dd'} fontSize="7" fontFamily="Space Mono, monospace">
+              {cp.name}
             </text>
           </g>
         );
       })}
 
-      <text x={4} y={H - 4} fill="#1e2d3d" fontSize="7" fontFamily="Space Mono, monospace">
-        CHAINFLOWX · EQUIRECTANGULAR · 2D MODE
+      <text x={4} y={H - 4} fill="rgba(192,214,230,0.5)" fontSize="7" fontFamily="Space Mono, monospace">
+        CHAINFLOWX · REAL-TEXTURE EQUIRECTANGULAR · 2D MODE
       </text>
     </svg>
   );
@@ -131,56 +142,71 @@ function getChokepointView(id) {
 export default function SupplyChainGlobe({ routes, chokepoints, eventState, onRouteSelect, mapMode }) {
   const containerRef = useRef();
   const globeRef     = useRef();
+  const [globeError, setGlobeError] = useState('');
 
   // ── Initialize globe ──────────────────────────────────────────────────────
   useEffect(() => {
+    if (mapMode !== '3d') return;
     if (!containerRef.current) return;
 
-    const globe = Globe()(containerRef.current);
-
-    globe
-      // WorldMonitor textures (local — no CDN dependency)
-      .globeImageUrl('/textures/earth-topo-bathy.jpg')
-      .backgroundImageUrl('/textures/night-sky.png')
-      // WorldMonitor atmosphere config
-      .atmosphereColor('#4466cc')
-      .atmosphereAltitude(0.18)
-      .backgroundColor('rgba(0,0,0,0)')
-      .showGraticules(false)
-      .width(containerRef.current.clientWidth)
-      .height(containerRef.current.clientHeight);
-
-    // WorldMonitor orbit controls
-    const controls = globe.controls();
-    controls.autoRotate      = true;
-    controls.autoRotateSpeed = 0.3;
-    controls.enablePan       = false;
-    controls.enableZoom      = true;
-    controls.zoomSpeed       = 1.4;
-    controls.minDistance     = 101;
-    controls.maxDistance     = 600;
-    controls.enableDamping   = true;
-
-    // Apply water/specular texture to globe material
+    let globe;
     try {
-      const material = globe.globeMaterial();
-      if (material && window.THREE) {
-        const loader = new window.THREE.TextureLoader();
-        loader.load('/textures/earth-water.png', (tex) => {
-          material.specularMap = tex;
-          material.specular = new window.THREE.Color('#555577');
-          material.needsUpdate = true;
-        });
-      }
-    } catch (_) { /* ignore if THREE not exposed */ }
+      globe = Globe()(containerRef.current);
 
-    globeRef.current = globe;
-    return () => { if (globe._destructor) globe._destructor(); };
-  }, []);
+      globe
+        // WorldMonitor textures (local — no CDN dependency)
+        .globeImageUrl('/textures/earth-topo-bathy.jpg')
+        .backgroundImageUrl('/textures/night-sky.png')
+        // WorldMonitor atmosphere config
+        .atmosphereColor('#4466cc')
+        .atmosphereAltitude(0.18)
+        .backgroundColor('rgba(0,0,0,0)')
+        .showGraticules(false)
+        .width(containerRef.current.clientWidth)
+        .height(containerRef.current.clientHeight);
+
+      // WorldMonitor orbit controls
+      const controls = globe.controls();
+      controls.autoRotate      = true;
+      controls.autoRotateSpeed = 0.3;
+      controls.enablePan       = false;
+      controls.enableZoom      = true;
+      controls.zoomSpeed       = 1.4;
+      controls.minDistance     = 101;
+      controls.maxDistance     = 600;
+      controls.enableDamping   = true;
+
+      // Apply water/specular texture to globe material
+      try {
+        const material = globe.globeMaterial();
+        if (material && window.THREE) {
+          const loader = new window.THREE.TextureLoader();
+          loader.load('/textures/earth-water.png', (tex) => {
+            material.specularMap = tex;
+            material.specular = new window.THREE.Color('#555577');
+            material.needsUpdate = true;
+          });
+        }
+      } catch (_) { /* ignore if THREE not exposed */ }
+
+      setGlobeError('');
+      globeRef.current = globe;
+    } catch (err) {
+      console.error('[ChainFlowX] Globe initialization failed:', err);
+      setGlobeError('3D globe unavailable. Falling back to 2D mode.');
+      globeRef.current = null;
+      return;
+    }
+
+    return () => {
+      if (globe?._destructor) globe._destructor();
+      globeRef.current = null;
+    };
+  }, [mapMode]);
 
   // ── Update arcs (WorldMonitor-style 3-stop gradient + altitudeAutoScale) ──
   useEffect(() => {
-    if (!globeRef.current || !routes) return;
+    if (mapMode !== '3d' || !globeRef.current || !routes) return;
     const globe = globeRef.current;
 
     globe
@@ -209,11 +235,11 @@ export default function SupplyChainGlobe({ routes, chokepoints, eventState, onRo
           <div style="color:#5a7a8a">Risk: ${d.currentRisk?.toFixed(0) ?? d.baseRisk}/100 · ${d.commodity}</div>
         </div>
       `);
-  }, [routes, onRouteSelect]);
+  }, [routes, onRouteSelect, mapMode]);
 
   // ── Update chokepoints + rings for affected ones ──────────────────────────
   useEffect(() => {
-    if (!globeRef.current || !chokepoints) return;
+    if (mapMode !== '3d' || !globeRef.current || !chokepoints) return;
     const globe = globeRef.current;
     const affectedId = eventState?.classified?.nearestChokepoint;
 
@@ -227,7 +253,7 @@ export default function SupplyChainGlobe({ routes, chokepoints, eventState, onRo
       .pointLabel(d => `
         <div style="background:#0b1118;border:1px solid #1e2d3d;padding:5px 9px;border-radius:2px;font-family:'Space Mono',monospace;font-size:10px">
           <div style="color:#00d4ff;font-weight:700">${d.name}</div>
-          <div style="color:#5a7a8a">${d.tradeSharePct}% world trade</div>
+          <div style="color:#5a7a8a">${d.tradeSharePercent}% world trade</div>
         </div>
       `);
 
@@ -244,11 +270,11 @@ export default function SupplyChainGlobe({ routes, chokepoints, eventState, onRo
       .ringMaxRadius(4)
       .ringPropagationSpeed(2)
       .ringRepeatPeriod(1200);
-  }, [chokepoints, eventState]);
+  }, [chokepoints, eventState, mapMode]);
 
   // ── Auto-fly to affected chokepoint on event change ───────────────────────
   useEffect(() => {
-    if (!globeRef.current) return;
+    if (mapMode !== '3d' || !globeRef.current) return;
     const affectedId = eventState?.classified?.nearestChokepoint;
     if (!affectedId) return;
     const view = getChokepointView(affectedId);
@@ -258,12 +284,12 @@ export default function SupplyChainGlobe({ routes, chokepoints, eventState, onRo
       globeRef.current?.pointOfView({ lat: view.lat, lng: view.lng, altitude: view.alt }, 1400);
     }, 300);
     return () => clearTimeout(t);
-  }, [eventState?.classified?.nearestChokepoint]);
+  }, [eventState?.classified?.nearestChokepoint, mapMode]);
 
   // ── Resize ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const handleResize = () => {
-      if (globeRef.current && containerRef.current) {
+      if (mapMode === '3d' && globeRef.current && containerRef.current) {
         globeRef.current
           .width(containerRef.current.clientWidth)
           .height(containerRef.current.clientHeight);
@@ -271,7 +297,7 @@ export default function SupplyChainGlobe({ routes, chokepoints, eventState, onRo
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [mapMode]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', background: '#060a0f' }}>
@@ -283,17 +309,38 @@ export default function SupplyChainGlobe({ routes, chokepoints, eventState, onRo
         </div>
       )}
 
-      {/* 3D globe — always warm; hidden in 2D mode */}
-      <div
-        ref={containerRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          opacity: mapMode === '2d' ? 0 : 1,
-          pointerEvents: mapMode === '2d' ? 'none' : 'auto',
-          transition: 'opacity 0.3s',
-        }}
-      />
+      {/* 3D globe — mounted only in 3D mode to avoid 2D rendering conflicts */}
+      {mapMode === '3d' && !globeError && (
+        <div
+          ref={containerRef}
+          style={{
+            width: '100%',
+            height: '100%',
+            transition: 'opacity 0.3s',
+          }}
+        />
+      )}
+
+      {/* Globe fallback notice */}
+      {mapMode === '3d' && globeError && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 6,
+            display: 'grid',
+            placeItems: 'center',
+            background: 'radial-gradient(circle at 50% 45%, rgba(0,40,70,0.28), rgba(6,10,15,0.94))',
+            color: '#a8c3d4',
+            fontFamily: "'Space Mono', monospace",
+            fontSize: '11px',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+          }}
+        >
+          {globeError}
+        </div>
+      )}
 
       {/* Event headline overlay */}
       {eventState?.raw && (

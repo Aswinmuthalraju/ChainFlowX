@@ -14,13 +14,15 @@ import IndustryCascadePanel from './supply-chain/components/IndustryCascadePanel
 import RouteDetailPanel from './supply-chain/components/RouteDetailPanel.jsx';
 import StrategicInsightPanel from './supply-chain/components/StrategicInsightPanel.jsx';
 
-// Demo event map — key → DEMO_EVENTS entry
+const findDemoEvent = (id) => DEMO_EVENTS.find(evt => evt.id === id) ?? null;
+
+// Demo event map — stable key → event id mapping
 const DEMO_EVENT_MAP = {
-  cyclone:    DEMO_EVENTS[0],
-  conflict:   DEMO_EVENTS[1],
-  blockage:   DEMO_EVENTS[2],
-  strike:     DEMO_EVENTS[3],
-  earthquake: DEMO_EVENTS[4],
+  cyclone:    findDemoEvent('evt-cyclone-bay'),
+  conflict:   findDemoEvent('evt-conflict-redsea'),
+  blockage:   findDemoEvent('evt-blockage-suez'),
+  strike:     findDemoEvent('evt-sanctions-hormuz'),
+  earthquake: findDemoEvent('evt-earthquake-taiwan'),
 };
 
 // 5 demo scenes — left panel buttons
@@ -143,11 +145,11 @@ export default function App() {
         <div className="header-ai-pills">
           <span className="ai-pill ai-pill--green">
             <span className="pill-dot" style={{ background: '#00ff88' }} />
-            GEMMA4·E4B
+            GEMMA2·9B
           </span>
           <span className="ai-pill ai-pill--blue">
             <span className="pill-dot" style={{ background: '#00d4ff' }} />
-            QWEN3·8B
+            QWEN3.5·9B
           </span>
           <span className="ai-pill ai-pill--cyan">
             <span className="pill-dot" style={{ background: 'rgba(0,212,255,0.5)' }} />
