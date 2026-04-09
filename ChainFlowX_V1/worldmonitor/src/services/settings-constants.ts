@@ -19,6 +19,7 @@ export const SIGNUP_URLS: Partial<Record<RuntimeSecretKey, string>> = {
   OPENSKY_CLIENT_SECRET: 'https://opensky-network.org/login?view=registration',
   FINNHUB_API_KEY: 'https://finnhub.io/register',
   NASA_FIRMS_API_KEY: 'https://firms.modaps.eosdis.nasa.gov/api/area/',
+  UCDP_ACCESS_TOKEN: 'https://ucdp.uu.se/apidocs/',
   OLLAMA_API_URL: 'https://ollama.com/download',
   OLLAMA_MODEL: 'https://ollama.com/library',
   WTO_API_KEY: 'https://apiportal.wto.org/',
@@ -33,7 +34,7 @@ export const PLAINTEXT_KEYS = new Set<RuntimeSecretKey>([
   'VITE_OPENSKY_RELAY_URL',
 ]);
 
-export const MASKED_SENTINEL = '__CFX_MASKED__';
+export const MASKED_SENTINEL = '__WM_MASKED__';
 
 export const HUMAN_LABELS: Record<RuntimeSecretKey, string> = {
   GROQ_API_KEY: 'Groq API Key',
@@ -56,9 +57,10 @@ export const HUMAN_LABELS: Record<RuntimeSecretKey, string> = {
   AISSTREAM_API_KEY: 'AISStream API Key',
   FINNHUB_API_KEY: 'Finnhub API Key',
   NASA_FIRMS_API_KEY: 'NASA FIRMS API Key',
+  UCDP_ACCESS_TOKEN: 'UCDP Access Token',
   OLLAMA_API_URL: 'Ollama Server URL',
   OLLAMA_MODEL: 'Ollama Model',
-  CHAINFLOWX_API_KEY: 'ChainFlowX License Key',
+  WORLDMONITOR_API_KEY: 'World Monitor License Key',
   WTO_API_KEY: 'WTO API Key',
   AVIATIONSTACK_API: 'AviationStack API Key',
   ICAO_API_KEY: 'ICAO NOTAM API Key',
@@ -89,7 +91,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   {
     id: 'security',
     label: 'Security & Threats',
-    features: ['internetOutages', 'acledConflicts', 'abuseChThreatIntel', 'alienvaultOtxThreatIntel', 'abuseIpdbThreatIntel'],
+    features: ['internetOutages', 'acledConflicts', 'ucdpConflicts', 'abuseChThreatIntel', 'alienvaultOtxThreatIntel', 'abuseIpdbThreatIntel'],
   },
   {
     id: 'tracking',

@@ -55,12 +55,12 @@ export interface AppContext {
   signalModal: import('@/components').SignalModal | null;
   statusPanel: import('@/components').StatusPanel | null;
   searchModal: import('@/components').SearchModal | null;
-
+  findingsBadge: import('@/components').IntelligenceGapBadge | null;
   breakingBanner: import('@/components/BreakingNewsBanner').BreakingNewsBanner | null;
   playbackControl: import('@/components').PlaybackControl | null;
   exportPanel: import('@/utils').ExportPanel | null;
   unifiedSettings: import('@/components/UnifiedSettings').UnifiedSettings | null;
-
+  pizzintIndicator: import('@/components').PizzIntIndicator | null;
   correlationEngine: import('@/services/correlation-engine').CorrelationEngine | null;
   llmStatusIndicator: import('@/components').LlmStatusIndicator | null;
   countryBriefPage: import('@/components/CountryBriefPanel').CountryBriefPanel | null;

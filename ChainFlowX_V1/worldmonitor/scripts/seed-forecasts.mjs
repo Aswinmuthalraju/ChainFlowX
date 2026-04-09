@@ -7583,7 +7583,7 @@ function buildSimulationInteractionLedger(actionLedger = [], situationSimulation
     const targetSpecificity = scoreActorSpecificity(target);
     const avgSpecificity = (sourceSpecificity + targetSpecificity) / 2;
     const sharedActor = source.actorId && target.actorId && source.actorId === target.actorId
-      && avgSpecificity >= 0.72;
+      && avgSpecificity >= 0.75;
     const sharedChannels = uniqueSortedStrings((source.channels || []).filter((channel) => (target.channels || []).includes(channel)));
     const familyLink = source.familyId && target.familyId && source.familyId === target.familyId;
     const regionLink = intersectCount(source.regions || [], target.regions || []) > 0;
@@ -8399,8 +8399,10 @@ function buildCrossSituationEffects(simulationState, options = {}) {
       const hasRegionLink = group.regionLink || intersectCount(source.regions || [], target.regions || []) > 0;
       const hasSharedActor = group.sharedActor || intersectCount(source.actorIds || [], target.actorIds || []) > 0;
       const hasDirectStructuralLink = hasRegionLink || hasSharedActor;
-      const crossTheater = isCrossTheaterPair(source.regions || [], target.regions || []);
-
+      const sourceMacro = getMacroRegion(source.regions || []);
+      const targetMacro = getMacroRegion(target.regions || []);
+      const crossTheater = !!(sourceMacro && targetMacro && sourceMacro !== targetMacro);
+      const sameMacroRegion = !!(sourceMacro && targetMacro && sourceMacro === targetMacro);
       const repeatedStages = group.stages?.size || 0;
       const effectClass = classifyEffectClass(group.strongestChannel, relation);
 
@@ -12391,7 +12393,6 @@ async function writeDeepForecastSnapshot(snapshot, _context = {}) {
   return {
     storageConfig,
     snapshotKey,
-    priorWorldState: _context.priorWorldState || null,
   };
 }
 
@@ -16039,12 +16040,9 @@ if (_isDirectRun) {
           triggerContext,
           forecastDepth: 'fast',
         }, { runId });
-        const snapshotWrite = await writeDeepForecastSnapshot(snapshotPayload, { runId, priorWorldState: data.priorWorldState });
+        const snapshotWrite = await writeDeepForecastSnapshot(snapshotPayload, { runId });
         if (snapshotWrite?.storageConfig && (data.impactExpansionCandidates || []).length > 0) {
-          writeSimulationPackage(snapshotPayload, { 
-            storageConfig: snapshotWrite.storageConfig, 
-            priorWorldState: snapshotWrite.priorWorldState || null
-          })
+          writeSimulationPackage(snapshotPayload, { storageConfig: snapshotWrite.storageConfig, priorWorldState: data.priorWorldState || null })
             .then(() => enqueueSimulationTask(runId))
             .catch((err) => console.warn(`  [SimulationPackage] Write/enqueue failed: ${err.message}`));
         }

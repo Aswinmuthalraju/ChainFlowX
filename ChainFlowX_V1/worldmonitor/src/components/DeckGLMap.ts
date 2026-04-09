@@ -97,9 +97,10 @@ import {
 import type { GulfInvestment } from '@/types';
 import { resolveTradeRouteSegments, TRADE_ROUTES as TRADE_ROUTES_LIST, type TradeRouteSegment } from '@/config/trade-routes';
 import { getLayersForVariant, resolveLayerLabel, bindLayerSearch, type MapVariant } from '@/config/map-layer-definitions';
-import { getAuthState } from '@/services/auth-state';
+import { getAuthState, subscribeAuthState } from '@/services/auth-state';
 import { hasPremiumAccess } from '@/services/panel-gating';
 import { MapPopup, type PopupType } from './MapPopup';
+import type { GetChokepointStatusResponse } from '@/services/supply-chain';
 import {
   updateHotspotEscalation,
   getHotspotEscalation,
@@ -356,6 +357,7 @@ export class DeckGLMap {
   private cyberThreats: CyberThreat[] = [];
   private aptGroups: import('@/types').APTGroup[] = [];
   private aptGroupsLoaded = false;
+  private _unsubscribeAuthState: (() => void) | null = null;
   private aptGroupsLayerFailed = false;
   private satelliteImageryLayerFailed = false;
   private iranEvents: IranEvent[] = [];
@@ -4308,6 +4310,24 @@ export class DeckGLMap {
 
     this.container.appendChild(toggles);
 
+    // Unlock premium layers when auth state resolves (e.g., Clerk JWT arrives after map init).
+    // subscribeAuthState fires the callback synchronously if state is already available,
+    // so we defer the self-unsubscribe with queueMicrotask to ensure the assignment completes.
+    this._unsubscribeAuthState = subscribeAuthState((state) => {
+      if (!hasPremiumAccess(state)) return;
+      toggles.querySelectorAll('.layer-toggle-locked').forEach(label => {
+        label.classList.remove('layer-toggle-locked');
+        const input = label.querySelector('input') as HTMLInputElement | null;
+        if (input) input.disabled = false;
+        const labelSpan = label.querySelector('.toggle-label');
+        if (labelSpan) labelSpan.textContent = labelSpan.textContent!.replace(' \uD83D\uDD12', '');
+      });
+      queueMicrotask(() => {
+        this._unsubscribeAuthState?.();
+        this._unsubscribeAuthState = null;
+      });
+    });
+
     // Bind toggle events
     toggles.querySelectorAll('.layer-toggle input').forEach(input => {
       input.addEventListener('change', () => {
@@ -5278,6 +5298,10 @@ export class DeckGLMap {
     this.render();
   }
 
+  public setChokepointData(data: GetChokepointStatusResponse | null): void {
+    this.popup.setChokepointData(data);
+  }
+
   public setHappinessScores(data: HappinessData): void {
     this.happinessScores = data.scores;
     this.happinessYear = data.year;
@@ -6045,6 +6069,8 @@ export class DeckGLMap {
   }
 
   public destroy(): void {
+    this._unsubscribeAuthState?.();
+    this._unsubscribeAuthState = null;
     window.removeEventListener('theme-changed', this.handleThemeChange);
     window.removeEventListener('map-theme-changed', this.handleMapThemeChange);
     this.debouncedRebuildLayers.cancel();

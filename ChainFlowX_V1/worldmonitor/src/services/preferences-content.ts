@@ -26,6 +26,7 @@ import {
   type DigestMode,
 } from '@/services/notification-channels';
 import { getCurrentClerkUser } from '@/services/clerk';
+import { hasTier, getEntitlementState } from '@/services/entitlements';
 import { SITE_VARIANT } from '@/config/variant';
 // When VITE_QUIET_HOURS_BATCH_ENABLED=0 the relay does not honour batch_on_wake.
 // Hide that option so users cannot select a mode that silently behaves as critical_only.
@@ -43,7 +44,7 @@ import {
   type AnalysisPanelId,
 } from '@/services/analysis-framework-store';
 
-const DESKTOP_RELEASES_URL = 'https://github.com/koala73/ChainFlowX/releases';
+const DESKTOP_RELEASES_URL = 'https://github.com/koala73/worldmonitor/releases';
 
 export interface PreferencesHost {
   isDesktopApp: boolean;
@@ -356,10 +357,17 @@ export function renderPreferences(host: PreferencesHost): PreferencesResult {
   </a>`;
   html += `</div></details>`;
 
-  // ── Notifications group (web-only, signed-in) ──
+  // ── Notifications group (web-only, signed-in, PRO only) ──
   if (!host.isDesktopApp) {
     if (!host.isSignedIn) {
       html += `<div class="ai-flow-toggle-desc us-notif-signin">Sign in to link notification channels.</div>`;
+    } else if (getEntitlementState() !== null && !hasTier(1)) {
+      html += `<details class="wm-pref-group">`;
+      html += `<summary>Notifications <span class="panel-toggle-pro-badge">PRO</span></summary>`;
+      html += `<div class="wm-pref-group-content">`;
+      html += `<div class="ai-flow-toggle-desc">Get real-time intelligence alerts delivered to Telegram, Slack, Discord, and Email with configurable sensitivity, quiet hours, and digest scheduling.</div>`;
+      html += `<button type="button" class="panel-locked-cta" id="usNotifUpgradeBtn">Upgrade to Pro</button>`;
+      html += `</div></details>`;
     } else {
       html += `<details class="wm-pref-group" id="usNotifGroup">`;
       html += `<summary>Notifications</summary>`;
@@ -619,7 +627,17 @@ export function renderPreferences(host: PreferencesHost): PreferencesResult {
       if (!host.isDesktopApp) updateAiStatus(container);
 
       // ── Notifications section ──
-      if (!host.isDesktopApp && host.isSignedIn) {
+      if (!host.isDesktopApp && host.isSignedIn && getEntitlementState() !== null && !hasTier(1)) {
+        const upgradeBtn = container.querySelector<HTMLButtonElement>('#usNotifUpgradeBtn');
+        if (upgradeBtn) {
+          upgradeBtn.addEventListener('click', () => {
+            import('@/services/checkout').then(m => import('@/config/products').then(p => m.startCheckout(p.DEFAULT_UPGRADE_PRODUCT))).catch(() => {
+              window.open('https://worldmonitor.app/pro', '_blank');
+            });
+          }, { signal });
+        }
+      }
+      if (!host.isDesktopApp && host.isSignedIn && (getEntitlementState() === null || hasTier(1))) {
         let notifPollInterval: ReturnType<typeof setInterval> | null = null;
 
         function clearNotifPoll(): void {
@@ -1055,7 +1073,7 @@ export function renderPreferences(host: PreferencesHost): PreferencesResult {
             rowEl.innerHTML = `<div class="us-notif-ch-icon">${channelIcon('telegram')}</div><div class="us-notif-ch-body"><div class="us-notif-ch-name">Telegram</div><div class="us-notif-ch-sub">Generating code…</div></div>`;
             createPairingToken().then(({ token, expiresAt }) => {
               if (signal.aborted) return;
-              const botUsername = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_BOT_USERNAME as string | undefined) ?? 'ChainFlowXBot';
+              const botUsername = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_TELEGRAM_BOT_USERNAME as string | undefined) ?? 'WorldMonitorBot';
               const deepLink = `https://t.me/${String(botUsername)}?start=${token}`;
               const startCmd = `/start ${token}`;
               const secsLeft = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
@@ -1208,14 +1226,14 @@ export function renderPreferences(host: PreferencesHost): PreferencesResult {
 
         // Listen for OAuth popup completion
         const onMessage = (e: MessageEvent): void => {
-          // Bind trust to both: (1) a CFX-owned origin (callback is always on chainflowx.app,
-          // but settings may be open on a different *.chainflowx.app subdomain) and
+          // Bind trust to both: (1) a WM-owned origin (callback is always on worldmonitor.app,
+          // but settings may be open on a different *.worldmonitor.app subdomain) and
           // (2) the exact popup window we opened — prevents any sibling subdomain from
           // forging wm:slack_connected and triggering saveRuleWithNewChannel.
           const trustedOrigin = e.origin === window.location.origin ||
-            e.origin === 'https://chainflowx.app' ||
-            e.origin === 'https://www.chainflowx.app' ||
-            e.origin.endsWith('.chainflowx.app');
+            e.origin === 'https://worldmonitor.app' ||
+            e.origin === 'https://www.worldmonitor.app' ||
+            e.origin.endsWith('.worldmonitor.app');
           const fromSlack = slackOAuthPopup !== null && e.source === slackOAuthPopup;
           const fromDiscord = discordOAuthPopup !== null && e.source === discordOAuthPopup;
           if (!trustedOrigin || (!fromSlack && !fromDiscord)) return;

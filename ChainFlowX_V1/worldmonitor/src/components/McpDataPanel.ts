@@ -54,7 +54,7 @@ export class McpDataPanel extends Panel {
     }, '\u2699');
     configBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.element.dispatchEvent(new CustomEvent('cfx:mcp-configure', {
+      this.element.dispatchEvent(new CustomEvent('wm:mcp-configure', {
         bubbles: true,
         detail: { panelId: this.spec.id },
       }));
@@ -181,7 +181,7 @@ export class McpDataPanel extends Panel {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (widgetKey) headers['X-Widget-Key'] = widgetKey;
       if (proKey) headers['X-Pro-Key'] = proKey;
-      if (testerKey) headers['X-ChainFlowX-Key'] = testerKey;
+      if (testerKey) headers['X-WorldMonitor-Key'] = testerKey;
       const res = await fetch(widgetAgentUrl(), {
         method: 'POST',
         headers,

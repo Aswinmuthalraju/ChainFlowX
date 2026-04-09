@@ -2,11 +2,5 @@ import type { ForecastServiceHandler } from '../../../../src/generated/server/wo
 import { getForecasts } from './get-forecasts';
 import { getSimulationPackage } from './get-simulation-package';
 import { getSimulationOutcome } from './get-simulation-outcome';
-import { triggerSimulation } from './trigger-simulation';
 
-export const forecastHandler: ForecastServiceHandler = { 
-  getForecasts, 
-  getSimulationPackage, 
-  getSimulationOutcome,
-  triggerSimulation 
-};
+export const forecastHandler: ForecastServiceHandler = { getForecasts, getSimulationPackage, getSimulationOutcome };

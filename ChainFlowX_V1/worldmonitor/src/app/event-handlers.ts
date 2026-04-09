@@ -15,7 +15,7 @@ import type { DashboardSnapshot } from '@/services/storage';
 import {
   PlaybackControl,
   StatusPanel,
-
+  PizzIntIndicator,
   LlmStatusIndicator,
   CIIPanel,
   PredictionPanel,
@@ -914,7 +914,7 @@ export class EventHandlerManager implements AppModule {
     await this.exitFullscreenForNavigation();
 
     if (this.ctx.isDesktopApp || options.isLocalDev) {
-      localStorage.setItem('chainflowx-variant', variant);
+      localStorage.setItem('worldmonitor-variant', variant);
       window.location.reload();
       return;
     }
@@ -973,6 +973,15 @@ export class EventHandlerManager implements AppModule {
     this.ctx.statusPanel = new StatusPanel();
   }
 
+  setupPizzIntIndicator(): void {
+    if (SITE_VARIANT !== 'full') return;
+
+    this.ctx.pizzintIndicator = new PizzIntIndicator();
+    const headerLeft = this.ctx.container.querySelector('.header-left');
+    if (headerLeft) {
+      headerLeft.appendChild(this.ctx.pizzintIndicator.getElement());
+    }
+  }
 
   setupLlmStatusIndicator(): void {
     if (!isDesktopRuntime()) return;
@@ -1081,7 +1090,7 @@ export class EventHandlerManager implements AppModule {
       getLocalizedPanelName: (key: string, fallback: string) => this.getLocalizedPanelName(key, fallback),
       resetLayout: () => {
         localStorage.removeItem(this.ctx.PANEL_SPANS_KEY);
-        localStorage.removeItem('chainflowx-panel-col-spans');
+        localStorage.removeItem('worldmonitor-panel-col-spans');
         localStorage.removeItem(this.ctx.PANEL_ORDER_KEY);
         localStorage.removeItem(this.ctx.PANEL_ORDER_KEY + '-bottom');
         localStorage.removeItem(this.ctx.PANEL_ORDER_KEY + '-bottom-set');

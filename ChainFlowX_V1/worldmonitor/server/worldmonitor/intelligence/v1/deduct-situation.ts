@@ -7,7 +7,7 @@ import type {
 import { cachedFetchJson, getCachedJson } from '../../../_shared/redis';
 import { sha256Hex } from './_shared';
 import { callLlmReasoning } from '../../../_shared/llm';
-import { sanitizeHeadline, sanitizeForPrompt } from '../../../_shared/llm-sanitize.js';
+import { sanitizeHeadline } from '../../../_shared/llm-sanitize.js';
 import { buildDeductionPrompt, postProcessDeductionOutput } from './deduction-prompt';
 import { isCallerPremium } from '../../../_shared/premium-check';
 
@@ -87,8 +87,7 @@ export async function deductSituation(
     const query = typeof req.query === 'string' ? req.query.slice(0, MAX_QUERY_LEN).trim() : '';
     const geoContext = typeof req.geoContext === 'string' ? req.geoContext.slice(0, MAX_GEO_LEN).trim() : '';
     const isPremium = await isCallerPremium(ctx.request);
-    const frameworkRaw = isPremium && typeof req.framework === 'string' ? req.framework.slice(0, MAX_FRAMEWORK_LEN) : '';
-    const framework = frameworkRaw ? sanitizeForPrompt(frameworkRaw) : '';
+    const framework = isPremium && typeof req.framework === 'string' ? req.framework.slice(0, MAX_FRAMEWORK_LEN) : '';
 
     if (!query) return { analysis: '', model: '', provider: 'skipped' };
 

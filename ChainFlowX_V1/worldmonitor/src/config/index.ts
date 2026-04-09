@@ -1,8 +1,8 @@
 // Configuration exports
 // For variant-specific builds, set VITE_VARIANT environment variable
-// VITE_VARIANT=tech → tech.chainflowx.app (tech-focused)
-// VITE_VARIANT=full → chainflowx.app (supply chain)
-// VITE_VARIANT=finance → finance.chainflowx.app (markets/trading)
+// VITE_VARIANT=tech → tech.worldmonitor.app (tech-focused)
+// VITE_VARIANT=full → worldmonitor.app (geopolitical)
+// VITE_VARIANT=finance → finance.worldmonitor.app (markets/trading)
 
 export { SITE_VARIANT } from './variant';
 
@@ -56,7 +56,7 @@ export {
 // Only import what's needed for each variant
 // ============================================
 
-// Full variant (supply chain) - only included in full builds
+// Full variant (geopolitical) - only included in full builds
 // These are large data files that should be tree-shaken in tech builds
 export {
   FEEDS,

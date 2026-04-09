@@ -4,6 +4,7 @@ import { replayPendingCalls, clearAllPendingCalls } from '@/app/pending-panel-da
 import { getAlertsNearLocation } from '@/services/geo-convergence';
 import type { ClusteredEvent } from '@/types';
 import type { RelatedAsset } from '@/types';
+import type { TheaterPostureSummary } from '@/services/military-surge';
 import {
   MapContainer,
   NewsPanel,
@@ -30,6 +31,8 @@ import {
   PinnedWebcamsPanel,
   CIIPanel,
   CascadePanel,
+  StrategicRiskPanel,
+  StrategicPosturePanel,
   TechEventsPanel,
   ServiceStatusPanel,
   InternetDisruptionsPanel,
@@ -39,6 +42,7 @@ import {
   FearGreedPanel,
   ETFFlowsPanel,
   StablecoinPanel,
+  UcdpEventsPanel,
   InvestmentsPanel,
   TradePolicyPanel,
   SupplyChainPanel,
@@ -52,10 +56,14 @@ import {
   WorldClockPanel,
   AirlineIntelPanel,
   AviationCommandBar,
+  MilitaryCorrelationPanel,
+  EscalationCorrelationPanel,
   EconomicCorrelationPanel,
   DisasterCorrelationPanel,
+  DefensePatentsPanel,
   HormuzPanel,
   MacroTilesPanel,
+  FSIPanel,
   YieldCurvePanel,
   EarningsCalendarPanel,
   EconomicCalendarPanel,
@@ -266,7 +274,7 @@ export class PanelLayoutManager implements AppModule {
       case PanelGateReason.ANONYMOUS:
         return () => this.ctx.authModal?.open();
       case PanelGateReason.FREE_TIER:
-        return () => window.open('https://chainflowx.app/pro', '_blank');
+        return () => window.open('https://worldmonitor.app/pro', '_blank');
       default:
         return () => {};
     }
@@ -274,7 +282,7 @@ export class PanelLayoutManager implements AppModule {
 
   private async fetchGitHubStars(): Promise<void> {
     try {
-      const response = await fetch('https://api.github.com/repos/koala73/ChainFlowX');
+      const response = await fetch('https://api.github.com/repos/koala73/worldmonitor');
       if (!response.ok) return;
       const data = await response.json();
       const starsEl = document.getElementById('githubStars');
@@ -302,7 +310,7 @@ export class PanelLayoutManager implements AppModule {
         const vHref = (v: string, prod: string) => local || SITE_VARIANT === v ? '#' : prod;
         const vTarget = (v: string) => !local && SITE_VARIANT !== v && inIframe ? 'target="_blank" rel="noopener"' : '';
         return `
-            <a href="${vHref('full', 'https://chainflowx.app')}"
+            <a href="${vHref('full', 'https://worldmonitor.app')}"
                class="variant-option ${SITE_VARIANT === 'full' ? 'active' : ''}"
                data-variant="full"
                ${vTarget('full')}
@@ -311,7 +319,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.world')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('tech', 'https://tech.chainflowx.app')}"
+            <a href="${vHref('tech', 'https://tech.worldmonitor.app')}"
                class="variant-option ${SITE_VARIANT === 'tech' ? 'active' : ''}"
                data-variant="tech"
                ${vTarget('tech')}
@@ -320,7 +328,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.tech')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('finance', 'https://finance.chainflowx.app')}"
+            <a href="${vHref('finance', 'https://finance.worldmonitor.app')}"
                class="variant-option ${SITE_VARIANT === 'finance' ? 'active' : ''}"
                data-variant="finance"
                ${vTarget('finance')}
@@ -329,7 +337,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.finance')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('commodity', 'https://commodity.chainflowx.app')}"
+            <a href="${vHref('commodity', 'https://commodity.worldmonitor.app')}"
                class="variant-option ${SITE_VARIANT === 'commodity' ? 'active' : ''}"
                data-variant="commodity"
                ${vTarget('commodity')}
@@ -338,7 +346,7 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">${t('header.commodity')}</span>
             </a>
             <span class="variant-divider"></span>
-            <a href="${vHref('happy', 'https://happy.chainflowx.app')}"
+            <a href="${vHref('happy', 'https://happy.worldmonitor.app')}"
                class="variant-option ${SITE_VARIANT === 'happy' ? 'active' : ''}"
                data-variant="happy"
                ${vTarget('happy')}
@@ -347,12 +355,12 @@ export class PanelLayoutManager implements AppModule {
               <span class="variant-label">Good News</span>
             </a>`;
       })()}</div>
-          <span class="logo">CHAINFLOWX</span><span class="logo-mobile">ChainFlowX</span><span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}
-          <a href="https://x.com/chainflowx" target="_blank" rel="noopener" class="credit-link">
+          <span class="logo">MONITOR</span><span class="logo-mobile">World Monitor</span><span class="version">v${__APP_VERSION__}</span>${BETA_MODE ? '<span class="beta-badge">BETA</span>' : ''}
+          <a href="https://x.com/eliehabib" target="_blank" rel="noopener" class="credit-link">
             <svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-            <span class="credit-text">@chainflowx</span>
+            <span class="credit-text">@eliehabib</span>
           </a>
-          <a href="https://github.com/chainflowx/engine" target="_blank" rel="noopener" class="github-link" title="${t('header.viewOnGitHub')}">
+          <a href="https://github.com/koala73/worldmonitor" target="_blank" rel="noopener" class="github-link" title="${t('header.viewOnGitHub')}">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
             <span class="github-stars" id="githubStars"></span>
           </a>
@@ -391,7 +399,7 @@ export class PanelLayoutManager implements AppModule {
       <div class="mobile-menu-overlay" id="mobileMenuOverlay"></div>
       <nav class="mobile-menu" id="mobileMenu">
         <div class="mobile-menu-header">
-          <span class="mobile-menu-title">CHAINFLOWX</span>
+          <span class="mobile-menu-title">WORLD MONITOR</span>
           <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
@@ -428,16 +436,16 @@ export class PanelLayoutManager implements AppModule {
           <span class="mobile-menu-item-icon">${getCurrentTheme() === 'dark' ? '☀️' : '🌙'}</span>
           <span class="mobile-menu-item-label">${getCurrentTheme() === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
         </button>
-        <a class="mobile-menu-item" href="https://x.com/chainflowx" target="_blank" rel="noopener">
+        <a class="mobile-menu-item" href="https://x.com/eliehabib" target="_blank" rel="noopener">
           <span class="mobile-menu-item-icon"><svg class="x-logo" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>
-          <span class="mobile-menu-item-label">@chainflowx</span>
+          <span class="mobile-menu-item-label">@eliehabib</span>
         </a>
         <div class="mobile-menu-divider"></div>
         <div class="mobile-menu-footer-links">
-          <a href="${this.ctx.isDesktopApp ? 'https://chainflowx.app/pro' : 'https://www.chainflowx.app/pro'}" target="_blank" rel="noopener">Pro</a>
-          <a href="${this.ctx.isDesktopApp ? 'https://chainflowx.app/blog/' : 'https://www.chainflowx.app/blog/'}" target="_blank" rel="noopener">Blog</a>
-          <a href="${this.ctx.isDesktopApp ? 'https://chainflowx.app/docs' : 'https://www.chainflowx.app/docs'}" target="_blank" rel="noopener">Docs</a>
-          <a href="https://status.chainflowx.app/" target="_blank" rel="noopener">Status</a>
+          <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/pro' : 'https://www.worldmonitor.app/pro'}" target="_blank" rel="noopener">Pro</a>
+          <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/blog/' : 'https://www.worldmonitor.app/blog/'}" target="_blank" rel="noopener">Blog</a>
+          <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/docs' : 'https://www.worldmonitor.app/docs'}" target="_blank" rel="noopener">Docs</a>
+          <a href="https://status.worldmonitor.app/" target="_blank" rel="noopener">Status</a>
         </div>
         <div class="mobile-menu-version">v${__APP_VERSION__}</div>
       </nav>
@@ -496,21 +504,21 @@ export class PanelLayoutManager implements AppModule {
         <div class="site-footer-brand">
           <img src="/favico/favicon-32x32.png" alt="" width="28" height="28" class="site-footer-icon" />
           <div class="site-footer-brand-text">
-            <span class="site-footer-name">CHAINFLOWX</span>
-            <span class="site-footer-sub">v${__APP_VERSION__} &middot; <a href="https://x.com/chainflowx" target="_blank" rel="noopener" class="site-footer-credit">@chainflowx</a></span>
+            <span class="site-footer-name">WORLD MONITOR</span>
+            <span class="site-footer-sub">v${__APP_VERSION__} &middot; <a href="https://x.com/eliehabib" target="_blank" rel="noopener" class="site-footer-credit">@eliehabib</a></span>
           </div>
         </div>
         <nav>
-          <a href="${this.ctx.isDesktopApp ? 'https://chainflowx.app/pro' : 'https://www.chainflowx.app/pro'}" target="_blank" rel="noopener">Pro</a>
-          <a href="${this.ctx.isDesktopApp ? 'https://chainflowx.app/blog/' : 'https://www.chainflowx.app/blog/'}" target="_blank" rel="noopener">Blog</a>
-          <a href="${this.ctx.isDesktopApp ? 'https://chainflowx.app/docs' : 'https://www.chainflowx.app/docs'}" target="_blank" rel="noopener">Docs</a>
-          <a href="https://status.chainflowx.app/" target="_blank" rel="noopener">Status</a>
-          <a href="https://github.com/chainflowx/engine" target="_blank" rel="noopener">GitHub</a>
-          <a href="https://discord.gg/chainflowx" target="_blank" rel="noopener">Discord</a>
-          <a href="https://x.com/chainflowx" target="_blank" rel="noopener">X</a>
+          <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/pro' : 'https://www.worldmonitor.app/pro'}" target="_blank" rel="noopener">Pro</a>
+          <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/blog/' : 'https://www.worldmonitor.app/blog/'}" target="_blank" rel="noopener">Blog</a>
+          <a href="${this.ctx.isDesktopApp ? 'https://worldmonitor.app/docs' : 'https://www.worldmonitor.app/docs'}" target="_blank" rel="noopener">Docs</a>
+          <a href="https://status.worldmonitor.app/" target="_blank" rel="noopener">Status</a>
+          <a href="https://github.com/koala73/worldmonitor" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://discord.gg/re63kWKxaz" target="_blank" rel="noopener">Discord</a>
+          <a href="https://x.com/worldmonitorai" target="_blank" rel="noopener">X</a>
           ${this.ctx.isDesktopApp ? '' : `<span id="footerDownloadMount"></span>`}
         </nav>
-        <span class="site-footer-copy">&copy; ${new Date().getFullYear()} ChainFlowX</span>
+        <span class="site-footer-copy">&copy; ${new Date().getFullYear()} World Monitor</span>
       </footer>
     `;
 
@@ -547,6 +555,74 @@ export class PanelLayoutManager implements AppModule {
     });
   }
 
+  renderCriticalBanner(postures: TheaterPostureSummary[]): void {
+    if (this.ctx.isMobile) {
+      if (this.criticalBannerEl) {
+        this.criticalBannerEl.remove();
+        this.criticalBannerEl = null;
+      }
+      document.body.classList.remove('has-critical-banner');
+      return;
+    }
+
+    const dismissedAt = sessionStorage.getItem('banner-dismissed');
+    if (dismissedAt && Date.now() - parseInt(dismissedAt, 10) < 30 * 60 * 1000) {
+      return;
+    }
+
+    const critical = postures.filter(
+      (p) => p.postureLevel === 'critical' || (p.postureLevel === 'elevated' && p.strikeCapable)
+    );
+
+    if (critical.length === 0) {
+      if (this.criticalBannerEl) {
+        this.criticalBannerEl.remove();
+        this.criticalBannerEl = null;
+        document.body.classList.remove('has-critical-banner');
+      }
+      return;
+    }
+
+    const top = critical[0]!;
+    const isCritical = top.postureLevel === 'critical';
+
+    if (!this.criticalBannerEl) {
+      this.criticalBannerEl = document.createElement('div');
+      this.criticalBannerEl.className = 'critical-posture-banner';
+      const header = document.querySelector('.header');
+      if (header) header.insertAdjacentElement('afterend', this.criticalBannerEl);
+    }
+
+    document.body.classList.add('has-critical-banner');
+    this.criticalBannerEl.className = `critical-posture-banner ${isCritical ? 'severity-critical' : 'severity-elevated'}`;
+    this.criticalBannerEl.innerHTML = `
+      <div class="banner-content">
+        <span class="banner-icon">${isCritical ? '🚨' : '⚠️'}</span>
+        <span class="banner-headline">${escapeHtml(top.headline)}</span>
+        <span class="banner-stats">${top.totalAircraft} aircraft • ${escapeHtml(top.summary)}</span>
+        ${top.strikeCapable ? '<span class="banner-strike">STRIKE CAPABLE</span>' : ''}
+      </div>
+      <button class="banner-view" data-lat="${top.centerLat}" data-lon="${top.centerLon}">View Region</button>
+      <button class="banner-dismiss">×</button>
+    `;
+
+    this.criticalBannerEl.querySelector('.banner-view')?.addEventListener('click', () => {
+      console.log('[Banner] View Region clicked:', top.theaterId, 'lat:', top.centerLat, 'lon:', top.centerLon);
+      trackCriticalBannerAction('view', top.theaterId);
+      if (typeof top.centerLat === 'number' && typeof top.centerLon === 'number') {
+        this.ctx.map?.setCenter(top.centerLat, top.centerLon, 4);
+      } else {
+        console.error('[Banner] Missing coordinates for', top.theaterId);
+      }
+    });
+
+    this.criticalBannerEl.querySelector('.banner-dismiss')?.addEventListener('click', () => {
+      trackCriticalBannerAction('dismiss', top.theaterId);
+      this.criticalBannerEl?.classList.add('dismissed');
+      document.body.classList.remove('has-critical-banner');
+      sessionStorage.setItem('banner-dismissed', Date.now().toString());
+    });
+  }
 
   applyPanelSettings(): void {
     Object.entries(this.ctx.panelSettings).forEach(([key, config]) => {
@@ -761,8 +837,19 @@ export class PanelLayoutManager implements AppModule {
     this.createPanel('cascade', () => new CascadePanel());
     this.createPanel('satellite-fires', () => new SatelliteFiresPanel());
 
+    this.createPanel('defense-patents', () => new DefensePatentsPanel());
 
     // Correlation engine panels
+    if (this.shouldCreatePanel('military-correlation')) {
+      const p = new MilitaryCorrelationPanel();
+      p.setMapNavigateHandler((lat, lon) => { this.ctx.map?.setCenter(lat, lon, 6); });
+      this.ctx.panels['military-correlation'] = p;
+    }
+    if (this.shouldCreatePanel('escalation-correlation')) {
+      const p = new EscalationCorrelationPanel();
+      p.setMapNavigateHandler((lat, lon) => { this.ctx.map?.setCenter(lat, lon, 4); });
+      this.ctx.panels['escalation-correlation'] = p;
+    }
     if (this.shouldCreatePanel('economic-correlation')) {
       const p = new EconomicCorrelationPanel();
       p.setMapNavigateHandler((lat, lon) => { this.ctx.map?.setCenter(lat, lon, 4); });
@@ -774,11 +861,41 @@ export class PanelLayoutManager implements AppModule {
       this.ctx.panels['disaster-correlation'] = p;
     }
 
+    if (this.shouldCreatePanel('strategic-risk')) {
+      const strategicRiskPanel = new StrategicRiskPanel();
+      strategicRiskPanel.setLocationClickHandler((lat, lon) => {
+        this.ctx.map?.setCenter(lat, lon, 4);
+      });
+      this.ctx.panels['strategic-risk'] = strategicRiskPanel;
+    }
 
+    if (this.shouldCreatePanel('strategic-posture')) {
+      const strategicPosturePanel = new StrategicPosturePanel(() => this.ctx.allNews);
+      strategicPosturePanel.setLocationClickHandler((lat, lon) => {
+        console.log('[App] StrategicPosture handler called:', { lat, lon, hasMap: !!this.ctx.map });
+        this.ctx.map?.setCenter(lat, lon, 4);
+      });
+      this.ctx.panels['strategic-posture'] = strategicPosturePanel;
+    }
+
+    if (this.shouldCreatePanel('ucdp-events')) {
+      const ucdpEventsPanel = new UcdpEventsPanel();
+      ucdpEventsPanel.setEventClickHandler((lat, lon) => {
+        this.ctx.map?.setCenter(lat, lon, 5);
+      });
+      this.ctx.panels['ucdp-events'] = ucdpEventsPanel;
+    }
 
     this.createPanel('disease-outbreaks', () => new DiseaseOutbreaksPanel());
     this.createPanel('social-velocity', () => new SocialVelocityPanel());
 
+    this.lazyPanel('displacement', () =>
+      import('@/components/DisplacementPanel').then(m => {
+        const p = new m.DisplacementPanel();
+        p.setCountryClickHandler((lat: number, lon: number) => { this.ctx.map?.setCenter(lat, lon, 4); });
+        return p;
+      }),
+    );
 
     this.lazyPanel('climate', () =>
       import('@/components/ClimateAnomalyPanel').then(m => {
@@ -788,6 +905,9 @@ export class PanelLayoutManager implements AppModule {
       }),
     );
 
+    this.lazyPanel('population-exposure', () =>
+      import('@/components/PopulationExposurePanel').then(m => new m.PopulationExposurePanel()),
+    );
 
     this.lazyPanel('security-advisories', () =>
       import('@/components/SecurityAdvisoriesPanel').then(m => {
@@ -805,6 +925,13 @@ export class PanelLayoutManager implements AppModule {
       }),
     );
 
+    this.lazyPanel('thermal-escalation', () =>
+      import('@/components/ThermalEscalationPanel').then(m => {
+        const p = new m.ThermalEscalationPanel();
+        p.setLocationClickHandler((lat: number, lon: number) => { this.ctx.map?.setCenter(lat, lon, 4); });
+        return p;
+      }),
+    );
 
     const _lockPanels = this.ctx.isDesktopApp && !hasPremiumAccess();
 
@@ -828,6 +955,11 @@ export class PanelLayoutManager implements AppModule {
       _lockPanels ? ['AI-powered geopolitical forecasts', 'Cross-domain cascade predictions', 'Prediction market calibration'] : undefined,
     );
 
+    this.lazyPanel('oref-sirens', () =>
+      import('@/components/OrefSirensPanel').then(m => new m.OrefSirensPanel()),
+      undefined,
+      _lockPanels ? [t('premium.features.orefSirens1'), t('premium.features.orefSirens2')] : undefined,
+    );
 
     this.lazyPanel('telegram-intel', () =>
       import('@/components/TelegramIntelPanel').then(m => new m.TelegramIntelPanel()),
@@ -935,6 +1067,7 @@ export class PanelLayoutManager implements AppModule {
     this.createPanel('macro-signals', () => new MacroSignalsPanel());
     this.createPanel('fear-greed', () => new FearGreedPanel());
     this.createPanel('macro-tiles', () => new MacroTilesPanel());
+    this.createPanel('fsi', () => new FSIPanel());
     this.createPanel('yield-curve', () => new YieldCurvePanel());
     this.createPanel('earnings-calendar', () => new EarningsCalendarPanel());
     this.createPanel('economic-calendar', () => new EconomicCalendarPanel());
@@ -951,6 +1084,9 @@ export class PanelLayoutManager implements AppModule {
     this.createPanel('insights', () => new InsightsPanel());
 
     // Global Giving panel (all variants)
+    this.lazyPanel('giving', () =>
+      import('@/components/GivingPanel').then(m => new m.GivingPanel()),
+    );
 
     // Happy variant panels (lazy-loaded — only relevant for happy variant)
     if (SITE_VARIANT === 'happy') {

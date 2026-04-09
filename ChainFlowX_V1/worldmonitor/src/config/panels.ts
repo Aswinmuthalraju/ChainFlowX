@@ -20,11 +20,17 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'live-webcams': { name: 'Live Webcams', enabled: true, priority: 1 },
   'windy-webcams': { name: 'Windy Live Webcam', enabled: false, priority: 2 },
   insights: { name: 'AI Insights', enabled: true, priority: 1 },
+  'strategic-posture': { name: 'AI Strategic Posture', enabled: true, priority: 1 },
   forecast: { name: 'AI Forecasts', enabled: true, priority: 1, ...(_desktop && { premium: 'locked' as const }) }, // trial: unlocked on web, locked on desktop
-  cii: { name: 'Supply Chain Resilience', enabled: true, priority: 1, ...(_desktop && { premium: 'enhanced' as const }) },
-  intel: { name: 'Signal Feed', enabled: true, priority: 1 },
+  cii: { name: 'Country Instability', enabled: true, priority: 1, ...(_desktop && { premium: 'enhanced' as const }) },
+  'strategic-risk': { name: 'Strategic Risk Overview', enabled: true, priority: 1, ...(_desktop && { premium: 'enhanced' as const }) },
+  intel: { name: 'Intel Feed', enabled: true, priority: 1 },
   'gdelt-intel': { name: 'Live Intelligence', enabled: true, priority: 1, ...(_desktop && { premium: 'enhanced' as const }) },
   cascade: { name: 'Infrastructure Cascade', enabled: true, priority: 1 },
+  'military-correlation': { name: 'Force Posture', enabled: true, priority: 2 },
+  'escalation-correlation': { name: 'Escalation Monitor', enabled: true, priority: 2 },
+  'economic-correlation': { name: 'Economic Warfare', enabled: true, priority: 2 },
+  'disaster-correlation': { name: 'Disaster Cascade', enabled: true, priority: 2 },
   politics: { name: 'World News', enabled: true, priority: 1 },
   us: { name: 'United States', enabled: true, priority: 1 },
   europe: { name: 'Europe', enabled: true, priority: 1 },
@@ -42,7 +48,7 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'stock-analysis': { name: 'Stock Analysis', enabled: true, priority: 1, premium: 'locked' as const },
   'stock-backtest': { name: 'Backtesting', enabled: true, priority: 1, premium: 'locked' as const },
   'daily-market-brief': { name: 'Daily Market Brief', enabled: true, priority: 1, premium: 'locked' as const },
-  'chat-analyst': { name: 'CFX Analyst', enabled: true, priority: 1, premium: 'locked' as const },
+  'chat-analyst': { name: 'WM Analyst', enabled: true, priority: 1, premium: 'locked' as const },
   economic: { name: 'Macro Stress', enabled: true, priority: 1 },
   'trade-policy': { name: 'Trade Policy', enabled: true, priority: 1 },
   'supply-chain': { name: 'Supply Chain', enabled: true, priority: 1, ...(_desktop && { premium: 'enhanced' as const }) },
@@ -71,13 +77,20 @@ const FULL_PANELS: Record<string, PanelConfig> = {
   'fao-food-price-index': { name: 'FAO Food Price Index', enabled: false, priority: 2 },
   'etf-flows': { name: 'BTC ETF Tracker', enabled: true, priority: 2 },
   stablecoins: { name: 'Stablecoins', enabled: true, priority: 2 },
+  'ucdp-events': { name: 'UCDP Conflict Events', enabled: true, priority: 2 },
   'disease-outbreaks': { name: 'Disease Outbreaks', enabled: true, priority: 2 },
   'social-velocity': { name: 'Social Velocity', enabled: true, priority: 2 },
   giving: { name: 'Global Giving', enabled: false, priority: 2 },
+  displacement: { name: 'UNHCR Displacement', enabled: true, priority: 2 },
   climate: { name: 'Climate Anomalies', enabled: true, priority: 2 },
   'climate-news': { name: 'Climate News', enabled: false, priority: 2 },
+  'population-exposure': { name: 'Population Exposure', enabled: true, priority: 2 },
   'security-advisories': { name: 'Security Advisories', enabled: true, priority: 2 },
   'sanctions-pressure': { name: 'Sanctions Pressure', enabled: true, priority: 2 },
+  'defense-patents': { name: 'R&D Signal', enabled: true, priority: 2 },
+  'radiation-watch': { name: 'Radiation Watch', enabled: true, priority: 2 },
+  'thermal-escalation': { name: 'Thermal Escalation', enabled: true, priority: 2 },
+  'oref-sirens': { name: 'Israel Sirens', enabled: true, priority: 2, ...(_desktop && { premium: 'locked' as const }) },
   'telegram-intel': { name: 'Telegram Intel', enabled: true, priority: 2, ...(_desktop && { premium: 'locked' as const }) },
   'airline-intel': { name: 'Airline Intelligence', enabled: true, priority: 2 },
   'tech-readiness': { name: 'Tech Readiness Index', enabled: true, priority: 2 },
@@ -91,17 +104,18 @@ const FULL_PANELS: Record<string, PanelConfig> = {
 };
 
 const FULL_MAP_LAYERS: MapLayers = {
-  iranAttacks: false,
+  iranAttacks: !_desktop,
   gpsJamming: false,
   satellites: false,
 
 
-  conflicts: false,
-  cables: true,
-  pipelines: true,
+  conflicts: true,
+  bases: !_desktop,
+  cables: false,
+  pipelines: false,
   hotspots: true,
-  ais: true,
-  nuclear: false,
+  ais: false,
+  nuclear: true,
   irradiators: false,
   radiationWatch: false,
   sanctions: true,
@@ -109,19 +123,19 @@ const FULL_MAP_LAYERS: MapLayers = {
   economic: true,
   waterways: true,
   outages: true,
-  cyberThreats: true,
-  datacenters: true,
-  protests: true,
-  flights: true,
-  military: false,
+  cyberThreats: false,
+  datacenters: false,
+  protests: false,
+  flights: false,
+  military: true,
   natural: true,
   spaceports: false,
-  minerals: true,
-  fires: true,
+  minerals: false,
+  fires: false,
   // Data source layers
   ucdpEvents: false,
   displacement: false,
-  climate: true,
+  climate: false,
   // Tech layers (disabled in full variant)
   startupHubs: false,
   cloudRegions: false,
@@ -140,7 +154,7 @@ const FULL_MAP_LAYERS: MapLayers = {
   happiness: false,
   speciesRecovery: false,
   renewableInstallations: false,
-  tradeRoutes: true,
+  tradeRoutes: false,
   ciiChoropleth: false,
   resilienceScore: false,
   dayNight: false,
@@ -153,12 +167,12 @@ const FULL_MAP_LAYERS: MapLayers = {
 };
 
 const FULL_MOBILE_MAP_LAYERS: MapLayers = {
-  iranAttacks: false,
+  iranAttacks: true,
   gpsJamming: false,
   satellites: false,
 
 
-  conflicts: false,
+  conflicts: true,
   bases: false,
   cables: false,
   pipelines: false,
@@ -934,7 +948,7 @@ export function isPanelEntitled(key: string, config: PanelConfig, isPro = false)
   if (isEntitled()) return true;
   const apiKeyPanels = ['stock-analysis', 'stock-backtest', 'daily-market-brief', 'market-implications', 'deduction', 'chat-analyst'];
   if (apiKeyPanels.includes(key)) {
-    return getSecretState('CHAINFLOWX_API_KEY').present || isPro;
+    return getSecretState('WORLDMONITOR_API_KEY').present || isPro;
   }
   if (config.premium === 'locked') {
     return isDesktopRuntime();
@@ -1115,8 +1129,8 @@ export const MONITOR_COLORS = [
 ];
 
 export const STORAGE_KEYS = {
-  panels: 'chainflowx-panels',
-  monitors: 'chainflowx-monitors',
-  mapLayers: 'chainflowx-layers',
-  disabledFeeds: 'chainflowx-disabled-feeds',
+  panels: 'worldmonitor-panels',
+  monitors: 'worldmonitor-monitors',
+  mapLayers: 'worldmonitor-layers',
+  disabledFeeds: 'worldmonitor-disabled-feeds',
 } as const;

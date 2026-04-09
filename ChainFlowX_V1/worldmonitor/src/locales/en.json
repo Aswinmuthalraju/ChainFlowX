@@ -1,7 +1,7 @@
 {
   "app": {
-    "title": "ChainFlowX",
-    "description": "Supply Chain Contagion Intelligence"
+    "title": "World Monitor",
+    "description": "Global Situation with AI Insights"
   },
   "widgets": {
     "createWithAi": "Create with AI",
@@ -39,12 +39,12 @@
     "phaseError": "Error",
     "previewCheckingHeading": "Connecting the widget builder",
     "previewReadyHeading": "Describe the widget you want",
-    "previewFetchingHeading": "Fetching live ChainFlowX data",
+    "previewFetchingHeading": "Fetching live WorldMonitor data",
     "previewComposingHeading": "Composing the widget layout",
     "previewErrorHeading": "The preview needs attention",
     "previewCheckingCopy": "We are validating your widget key and backend availability before enabling generation.",
     "previewReadyCopy": "Use a prompt example or describe the exact live view you want. The preview will update here before you save it.",
-    "previewFetchingCopy": "The agent is calling approved ChainFlowX endpoints and shaping the dataset for the widget.",
+    "previewFetchingCopy": "The agent is calling approved WorldMonitor endpoints and shaping the dataset for the widget.",
     "previewComposingCopy": "The preview is rendering with the latest live data and dashboard styling.",
     "previewErrorCopy": "Fix the issue, then retry. Your existing widgets are unaffected.",
     "createInteractive": "Create Interactive Widget",
@@ -71,7 +71,7 @@
     "retryBtn": "Retry",
     "closeBtn": "Close",
     "limitedCoverage": "Limited coverage",
-    "instabilityIndex": "Contagion Risk Index",
+    "instabilityIndex": "Instability Index",
     "notTracked": "Not tracked — {{country}} is not in the CII tier-1 list",
     "intelBrief": "Intelligence Brief",
     "generatingBrief": "Generating intelligence brief...",
@@ -286,9 +286,9 @@
     "status": "System Status",
     "insights": "AI Insights",
     "strategicPosture": "AI Strategic Posture",
-    "cii": "Supply Chain Resilience",
+    "cii": "Country Instability",
     "strategicRisk": "Strategic Risk Overview",
-    "intel": "Signal Feed",
+    "intel": "Intel Feed",
     "gdeltIntel": "Live Intelligence",
     "cascade": "Infrastructure Cascade",
     "politics": "World News",
@@ -530,7 +530,7 @@
       "confidence": "Confidence",
       "country": "Country:",
       "scoreChange": "Score Change:",
-      "instabilityLevel": "Contagion Level:",
+      "instabilityLevel": "Instability Level:",
       "primaryDriver": "Primary Driver:",
       "location": "Location:",
       "eventTypes": "Event Types:",
@@ -602,7 +602,7 @@
       },
       "openSettings": "Open Settings",
       "reserveEarlyAccess": "Reserve Your Early Access",
-      "skipSetup": "Skip the setup — a single ChainFlowX license unlocks everything. Join the waitlist for early access.",
+      "skipSetup": "Skip the setup — a single World Monitor license unlocks everything. Join the waitlist for early access.",
       "summary": {
         "desktop": "Desktop mode",
         "web": "Web mode (read-only, server-managed credentials)",
@@ -648,13 +648,13 @@
       "noTraffic": "No traffic recorded yet.",
       "sidecarUnreachable": "Sidecar not reachable.",
       "logCleared": "Log cleared.",
-      "ChainFlowX": {
-        "tabLabel": "ChainFlowX",
+      "worldMonitor": {
+        "tabLabel": "World Monitor",
         "heroTitle": "One key. Everything included.",
-        "heroDescription": "A single ChainFlowX license replaces every API key and LLM provider you'd otherwise configure yourself. AI summaries, real-time intelligence, market data, chokepoint tracking, fire detection, satellite imagery — all powered, all managed, zero setup.",
+        "heroDescription": "A single World Monitor license replaces every API key and LLM provider you'd otherwise configure yourself. AI summaries, real-time intelligence, market data, conflict tracking, fire detection, satellite imagery — all powered, all managed, zero setup.",
         "apiKey": {
           "title": "License Key",
-          "placeholder": "cfx_xxxxxxxxxxxxxxxxxxxxxxxx",
+          "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
           "description": "Paste your license to unlock every data source and AI feature instantly.",
           "statusValid": "LICENSED",
           "statusMissing": "NO LICENSE"
@@ -662,7 +662,7 @@
         "dividerOr": "OR",
         "register": {
           "title": "Reserve Your Spot",
-          "description": "We're preparing to launch ChainFlowX licenses. Sign up now and be first in line — early members get priority access and founding-member pricing.",
+          "description": "We're preparing to launch World Monitor licenses. Sign up now and be first in line — early members get priority access and founding-member pricing.",
           "emailPlaceholder": "your@email.com",
           "submitBtn": "Join Waitlist",
           "submitting": "Submitting...",
@@ -685,7 +685,7 @@
     "countryIntel": {
       "identifying": "Identifying country...",
       "locating": "Locating region...",
-      "instabilityIndex": "Contagion Risk Index",
+      "instabilityIndex": "Instability Index",
       "protests": "protests",
       "militaryAircraft": "mil. aircraft",
       "militaryVessels": "mil. vessels",
@@ -704,7 +704,7 @@
       "identifying": "Identifying country...",
       "locating": "Locating region...",
       "limitedCoverage": "Limited coverage",
-      "instabilityIndex": "Contagion Risk Index",
+      "instabilityIndex": "Instability Index",
       "notTracked": "Not tracked — {{country}} is not in the CII tier-1 list",
       "intelBrief": "Intelligence Brief",
       "generatingBrief": "Generating intelligence brief...",
@@ -1289,7 +1289,7 @@
         "displacementFlows": "Displacement Flows",
         "climateAnomalies": "Climate Anomalies",
         "weatherAlerts": "Weather Alerts",
-        "strategicWaterways": "Strategic Waterways",
+        "strategicWaterways": "Chokepoints",
         "economicCenters": "Economic Centers",
         "criticalMinerals": "Critical Minerals",
         "stockExchanges": "Stock Exchanges",
@@ -1647,7 +1647,9 @@
         "minutesAgo": "{{count}}m ago",
         "hoursAgo": "{{count}}h ago"
       },
-      "infoTooltip": "NASA FIRMS VIIRS satellite thermal detections across monitored conflict regions. High-intensity = brightness >360K & confidence >80%."
+      "infoTooltip": "NASA FIRMS VIIRS satellite thermal detections across monitored conflict regions. High-intensity = brightness >360K & confidence >80%.",
+      "possibleExplosions": "{{count}} possible explosion(s) detected",
+      "explosionTooltip": "Thermal signature consistent with explosion (FRP >80 MW, brightness >380 K)"
     },
     "ucdpEvents": {
       "stateBased": "State-Based",
@@ -2070,7 +2072,7 @@
       "loadError": "Climate news temporarily unavailable"
     },
     "chatAnalyst": {
-      "infoTooltip": "<strong>CFX Analyst</strong> AI analyst with live context across geopolitical, market, military, and economic domains. Powered by Claude with real-time data injected from active ChainFlowX feeds."
+      "infoTooltip": "<strong>WM Analyst</strong> AI analyst with live context across geopolitical, market, military, and economic domains. Powered by Claude with real-time data injected from active WorldMonitor feeds."
     },
     "cotPositioning": {
       "infoTooltip": "<strong>CFTC COT Positioning</strong> Commitments of Traders report: net positioning of commercials, large speculators, and small traders across commodity and financial futures. Published weekly (Friday). Source: CFTC."
@@ -2100,7 +2102,7 @@
       "infoTooltip": "<strong>Macro Indicators</strong> Key macroeconomic indicators for the US and Euro Area: CPI, unemployment, GDP, and central bank rates. Values shown with prior period delta. Source: FRED (Federal Reserve Economic Data)."
     },
     "monitors": {
-      "infoTooltip": "<strong>Keyword Monitors</strong> Add any term to track live news mentions across all ChainFlowX sources. Results update in real time as matching articles are ingested."
+      "infoTooltip": "<strong>Keyword Monitors</strong> Add any term to track live news mentions across all WorldMonitor sources. Results update in real time as matching articles are ingested."
     },
     "renewable": {
       "infoTooltip": "<strong>Renewable Energy</strong> Global renewable energy project pipeline: solar, wind, hydro, and storage capacity additions. Tracks announced, under-construction, and commissioned projects by region and technology type."
@@ -2825,7 +2827,7 @@
   },
   "premium": {
     "pro": "PRO",
-    "lockedDesc": "Requires a ChainFlowX license key",
+    "lockedDesc": "Requires a World Monitor license key",
     "joinWaitlist": "Join Waitlist",
     "signInToUnlock": "Sign in to unlock premium features",
     "signIn": "Sign In to Unlock",

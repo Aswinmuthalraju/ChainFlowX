@@ -18,13 +18,13 @@ const MAX_IMPORT_SIZE_BYTES = 5 * 1024 * 1024;
 const SETTINGS_KEY_PREFIXES: readonly string[] = [
   ...CLOUD_SYNC_KEYS,
   // device-local / export-only (excluded from cloud sync)
-  'chainflowx-live-channels',
-  'chainflowx-active-channel',
-  'chainflowx-runtime-feature-toggles',
-  'cfx-globe-render-scale',
-  'cfx-live-streams-always-on',
-  'chainflowx-webcam-prefs',
-  'cfx-map-theme:',
+  'worldmonitor-live-channels',
+  'worldmonitor-active-channel',
+  'worldmonitor-runtime-feature-toggles',
+  'wm-globe-render-scale',
+  'wm-live-streams-always-on',
+  'worldmonitor-webcam-prefs',
+  'wm-map-theme:',
   'map-height',
   'map-pinned',
   'mobile-map-collapsed',
@@ -48,7 +48,7 @@ export function exportSettings(): void {
   const exportData: ExportedSettings = {
     version: 1,
     timestamp: new Date().toISOString(),
-    variant: localStorage.getItem('chainflowx-variant') || 'full',
+    variant: localStorage.getItem('worldmonitor-variant') || 'full',
     data,
   };
 
@@ -57,7 +57,7 @@ export function exportSettings(): void {
   const a = document.createElement('a');
   a.href = url;
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  a.download = `chainflowx-settings-${ts}.json`;
+  a.download = `worldmonitor-settings-${ts}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

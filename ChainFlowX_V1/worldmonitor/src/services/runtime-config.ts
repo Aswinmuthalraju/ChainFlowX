@@ -22,9 +22,10 @@ export type RuntimeSecretKey =
   | 'AISSTREAM_API_KEY'
   | 'FINNHUB_API_KEY'
   | 'NASA_FIRMS_API_KEY'
+  | 'UCDP_ACCESS_TOKEN'
   | 'OLLAMA_API_URL'
   | 'OLLAMA_MODEL'
-  | 'CHAINFLOWX_API_KEY'
+  | 'WORLDMONITOR_API_KEY'
   | 'WTO_API_KEY'
   | 'AVIATIONSTACK_API'
   | 'ICAO_API_KEY';
@@ -53,6 +54,7 @@ export type RuntimeFeatureId =
   | 'supplyChain'
   | 'newsPerFeedFallback'
   | 'aviationStack'
+  | 'ucdpConflicts'
   | 'icaoNotams';
 
 export interface RuntimeFeatureDefinition {
@@ -74,7 +76,7 @@ export interface RuntimeConfig {
   secrets: Partial<Record<RuntimeSecretKey, RuntimeSecretState>>;
 }
 
-const TOGGLES_STORAGE_KEY = 'chainflowx-runtime-feature-toggles';
+const TOGGLES_STORAGE_KEY = 'worldmonitor-runtime-feature-toggles';
 function getSidecarEnvUpdateUrl(): string {
   return `${getApiBaseUrl()}/api/local-env-update`;
 }
@@ -95,6 +97,7 @@ const defaultToggles: Record<RuntimeFeatureId, boolean> = {
   energyEia: true,
   internetOutages: true,
   acledConflicts: true,
+  ucdpConflicts: true,
   abuseChThreatIntel: true,
   alienvaultOtxThreatIntel: true,
   abuseIpdbThreatIntel: true,
@@ -182,6 +185,13 @@ export const RUNTIME_FEATURES: RuntimeFeatureDefinition[] = [
     description: 'Conflict and protest event feeds from ACLED.',
     requiredSecrets: ['ACLED_ACCESS_TOKEN'],
     fallback: 'Conflict/protest overlays are hidden.',
+  },
+  {
+    id: 'ucdpConflicts',
+    name: 'UCDP conflict events',
+    description: 'Armed conflict georeferenced event data from Uppsala Conflict Data Program.',
+    requiredSecrets: ['UCDP_ACCESS_TOKEN'],
+    fallback: 'UCDP conflict layer is disabled.',
   },
   {
     id: 'abuseChThreatIntel',
@@ -334,7 +344,7 @@ export function validateSecret(key: RuntimeSecretKey, value: string): { valid: b
     }
   }
 
-  if (key === 'CHAINFLOWX_API_KEY') {
+  if (key === 'WORLDMONITOR_API_KEY') {
     if (trimmed.length < 16) return { valid: false, hint: 'API key must be at least 16 characters' };
     return { valid: true };
   }
@@ -378,7 +388,7 @@ seedSecretsFromEnvironment();
 // When one window saves secrets or toggles features, the `storage` event fires in other same-origin windows.
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === 'cfx-secrets-updated') {
+    if (e.key === 'wm-secrets-updated') {
       void loadDesktopSecrets();
     } else if (e.key === TOGGLES_STORAGE_KEY && e.newValue) {
       try {
@@ -463,7 +473,7 @@ export async function setSecretValue(key: RuntimeSecretKey, value: string): Prom
   // Signal other windows (main ↔ settings) to reload secrets from keychain.
   // The `storage` event fires in all same-origin windows except the one that wrote.
   try {
-    localStorage.setItem('cfx-secrets-updated', String(Date.now()));
+    localStorage.setItem('wm-secrets-updated', String(Date.now()));
   } catch { /* localStorage may be unavailable */ }
 
   notifyConfigChanged();

@@ -1,7 +1,7 @@
 /**
  * GlobeMap - 3D interactive globe using globe.gl
  *
- * Matches ChainFlowX's MapContainer API so it can be used as a drop-in
+ * Matches World Monitor's MapContainer API so it can be used as a drop-in
  * replacement within MapContainer when the user enables globe mode.
  *
  * Architecture mirrors Sentinel (sentinel.axonia.us):
@@ -35,6 +35,7 @@ import type { MapLayers, Hotspot, MilitaryFlight, MilitaryVessel, MilitaryVessel
 import type { Earthquake } from '@/services/earthquakes';
 import type { AirportDelayAlert } from '@/services/aviation';
 import { MapPopup } from './MapPopup';
+import type { GetChokepointStatusResponse } from '@/services/supply-chain';
 import type { MapContainerState, MapView, TimeRange } from './MapContainer';
 import type { CountryClickPayload } from './DeckGLMap';
 import type { WeatherAlert } from '@/services/weather';
@@ -1797,7 +1798,7 @@ export class GlobeMap {
 
   private createLayerToggles(): void {
     const layerDefs = getLayersForVariant((SITE_VARIANT || 'full') as MapVariant, 'globe');
-    const _wmKey = getSecretState('CHAINFLOWX_API_KEY').present;
+    const _wmKey = getSecretState('WORLDMONITOR_API_KEY').present;
     const layers = layerDefs.map(def => ({
       key: def.key,
       label: resolveLayerLabel(def, t),
@@ -1857,7 +1858,7 @@ export class GlobeMap {
       const modeRow = document.createElement('div');
       modeRow.className = 'webcam-mode-row';
       modeRow.style.cssText = 'display:none;padding:2px 6px 4px 24px;font-size:10px;color:#aaa;';
-      const currentMode = (): string => localStorage.getItem('cfx-webcam-marker-mode') || 'icon';
+      const currentMode = (): string => localStorage.getItem('wm-webcam-marker-mode') || 'icon';
       const renderModeLabel = (): string => currentMode() === 'emoji' ? '&#128247; icon mode' : '&#128512; emoji mode';
       const modeBtn = document.createElement('button');
       modeBtn.style.cssText = 'background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);color:#00d4ff;font-size:10px;padding:1px 6px;border-radius:3px;cursor:pointer;margin-left:2px;';
@@ -1866,7 +1867,7 @@ export class GlobeMap {
       modeBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const next = currentMode() === 'icon' ? 'emoji' : 'icon';
-        localStorage.setItem('cfx-webcam-marker-mode', next);
+        localStorage.setItem('wm-webcam-marker-mode', next);
         this.webcamMarkerMode = next;
         modeBtn.innerHTML = renderModeLabel();
         this.flushMarkers();
@@ -2998,6 +2999,10 @@ export class GlobeMap {
   }
   public setPositiveEvents(_events: any[]): void {}
   public setKindnessData(_points: any[]): void {}
+  public setChokepointData(data: GetChokepointStatusResponse | null): void {
+    this.popup?.setChokepointData(data);
+  }
+
   public setHappinessScores(_data: any): void {}
   public setSpeciesRecoveryZones(_zones: any[]): void {}
   public setRenewableInstallations(_installations: any[]): void {}

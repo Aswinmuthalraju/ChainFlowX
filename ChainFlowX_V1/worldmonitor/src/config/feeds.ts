@@ -7,7 +7,6 @@ const railwayRss = rssProxyUrl;
 
 // Source tier system — canonical definition lives in server/_shared/source-tiers.ts
 // so server-side code can import it without pulling in client-only modules.
-// Updated for ChainFlowX
 export { SOURCE_TIERS, getSourceTier } from '../../server/_shared/source-tiers';
 
 

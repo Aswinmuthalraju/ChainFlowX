@@ -1,2 +1,2 @@
 export const BETA_MODE = typeof window !== 'undefined'
-  && localStorage.getItem('chainflowx-beta-mode') === 'true';
+  && localStorage.getItem('worldmonitor-beta-mode') === 'true';

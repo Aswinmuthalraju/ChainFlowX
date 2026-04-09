@@ -20,9 +20,10 @@ import { initDB, cleanOldSnapshots, isAisConfigured, initAisStream, isOutagesCon
 import { isProUser } from '@/services/widget-store';
 import { mlWorker } from '@/services/ml-worker';
 import { getAiFlowSettings, subscribeAiFlowChange, isHeadlineMemoryEnabled } from '@/services/ai-flow-settings';
+import { startLearning } from '@/services/country-instability';
 import { loadFromStorage, parseMapUrlState, saveToStorage, isMobileDevice } from '@/utils';
 import type { ParsedMapUrlState } from '@/utils';
-import { SignalModal, BreakingNewsBanner } from '@/components';
+import { SignalModal, IntelligenceGapBadge, BreakingNewsBanner } from '@/components';
 import { initBreakingNewsAlerts, destroyBreakingNewsAlerts } from '@/services/breaking-news-alerts';
 import type { ServiceStatusPanel } from '@/components/ServiceStatusPanel';
 import type { StablecoinPanel } from '@/components/StablecoinPanel';
@@ -30,6 +31,8 @@ import type { ETFFlowsPanel } from '@/components/ETFFlowsPanel';
 import type { MacroSignalsPanel } from '@/components/MacroSignalsPanel';
 import type { FearGreedPanel } from '@/components/FearGreedPanel';
 import type { HormuzPanel } from '@/components/HormuzPanel';
+import type { StrategicPosturePanel } from '@/components/StrategicPosturePanel';
+import type { StrategicRiskPanel } from '@/components/StrategicRiskPanel';
 import type { GulfEconomiesPanel } from '@/components/GulfEconomiesPanel';
 import type { GroceryBasketPanel } from '@/components/GroceryBasketPanel';
 import type { BigMacPanel } from '@/components/BigMacPanel';
@@ -37,7 +40,9 @@ import type { FuelPricesPanel } from '@/components/FuelPricesPanel';
 import type { FaoFoodPriceIndexPanel } from '@/components/FaoFoodPriceIndexPanel';
 import type { ClimateNewsPanel } from '@/components/ClimateNewsPanel';
 import type { ConsumerPricesPanel } from '@/components/ConsumerPricesPanel';
+import type { DefensePatentsPanel } from '@/components/DefensePatentsPanel';
 import type { MacroTilesPanel } from '@/components/MacroTilesPanel';
+import type { FSIPanel } from '@/components/FSIPanel';
 import type { YieldCurvePanel } from '@/components/YieldCurvePanel';
 import type { EarningsCalendarPanel } from '@/components/EarningsCalendarPanel';
 import type { EconomicCalendarPanel } from '@/components/EconomicCalendarPanel';
@@ -122,7 +127,7 @@ export class App {
   }
 
   private shouldRefreshIntelligence(): boolean {
-    return this.isAnyPanelNearViewport(['cii'])
+    return this.isAnyPanelNearViewport(['cii', 'strategic-risk', 'strategic-posture'])
       || !!this.state.countryBriefPage?.isVisible();
   }
 
@@ -131,7 +136,7 @@ export class App {
   }
 
   private shouldRefreshCorrelation(): boolean {
-    return this.isAnyPanelNearViewport(['economic-correlation', 'disaster-correlation']);
+    return this.isAnyPanelNearViewport(['military-correlation', 'escalation-correlation', 'economic-correlation', 'disaster-correlation']);
   }
 
   private getCachedBootstrapUpdatedAt(): number | null {
@@ -296,9 +301,17 @@ export class App {
       const panel = this.state.panels['consumer-prices'] as ConsumerPricesPanel | undefined;
       if (panel) primeTask('consumer-prices', () => panel.fetchData());
     }
+    if (shouldPrime('defense-patents')) {
+      const panel = this.state.panels['defense-patents'] as DefensePatentsPanel | undefined;
+      if (panel) primeTask('defense-patents', () => { panel.refresh(); return Promise.resolve(); });
+    }
     if (shouldPrime('macro-tiles')) {
       const panel = this.state.panels['macro-tiles'] as MacroTilesPanel | undefined;
       if (panel) primeTask('macro-tiles', () => panel.fetchData());
+    }
+    if (shouldPrime('fsi')) {
+      const panel = this.state.panels['fsi'] as FSIPanel | undefined;
+      if (panel) primeTask('fsi', () => panel.fetchData());
     }
     if (shouldPrime('yield-curve')) {
       const panel = this.state.panels['yield-curve'] as YieldCurvePanel | undefined;
@@ -366,7 +379,7 @@ export class App {
     if (!el) throw new Error(`Container ${containerId} not found`);
 
     const PANEL_ORDER_KEY = 'panel-order';
-    const PANEL_SPANS_KEY = 'chainflowx-panel-spans';
+    const PANEL_SPANS_KEY = 'worldmonitor-panel-spans';
 
     const isMobile = isMobileDevice();
     const isDesktopApp = isDesktopRuntime();
@@ -382,13 +395,13 @@ export class App {
     const isDynamicPanel = (k: string) => k === 'runtime-config' || k.startsWith('cw-') || k.startsWith('mcp-');
 
     // Check if variant changed - reset all settings to variant defaults
-    const storedVariant = localStorage.getItem('chainflowx-variant');
+    const storedVariant = localStorage.getItem('worldmonitor-variant');
     const currentVariant = SITE_VARIANT;
     console.log(`[App] Variant check: stored="${storedVariant}", current="${currentVariant}"`);
     if (storedVariant !== currentVariant) {
       // Variant changed — seed new variant's panels, disable panels not in the new variant
       console.log('[App] Variant changed - seeding new defaults, disabling cross-variant panels');
-      localStorage.setItem('chainflowx-variant', currentVariant);
+      localStorage.setItem('worldmonitor-variant', currentVariant);
       // Reset map layers for the new variant (map layers are not user-personalized the same way)
       localStorage.removeItem(STORAGE_KEYS.mapLayers);
       mapLayers = normalizeExclusiveChoropleths(
@@ -420,7 +433,7 @@ export class App {
       );
 
       // One-time migration: preserve user preferences across panel key renames.
-      const PANEL_KEY_RENAMES_MIGRATION_KEY = 'chainflowx-panel-key-renames-v2.6.8';
+      const PANEL_KEY_RENAMES_MIGRATION_KEY = 'worldmonitor-panel-key-renames-v2.6.8';
       if (!localStorage.getItem(PANEL_KEY_RENAMES_MIGRATION_KEY)) {
         let migrated = false;
         const keyRenames: Array<[string, string]> = [
@@ -470,7 +483,7 @@ export class App {
       }
 
       // One-time migration: expose all panels to existing users (previously variant-gated)
-      const UNIFIED_MIGRATION_KEY = 'chainflowx-unified-panels-v1';
+      const UNIFIED_MIGRATION_KEY = 'worldmonitor-unified-panels-v1';
       if (!localStorage.getItem(UNIFIED_MIGRATION_KEY)) {
         const variantDefaults = new Set(VARIANT_DEFAULTS[SITE_VARIANT] ?? []);
         for (const key of Object.keys(ALL_PANELS)) {
@@ -485,7 +498,7 @@ export class App {
 
       // One-time migration: fix happy variant sessions that got cross-variant panels enabled
       // (regression from #1911 unified panel registry which failed to disable non-variant panels on variant switch)
-      const HAPPY_PANEL_FIX_KEY = 'chainflowx-happy-panel-fix-v1';
+      const HAPPY_PANEL_FIX_KEY = 'worldmonitor-happy-panel-fix-v1';
       if (SITE_VARIANT === 'happy' && !localStorage.getItem(HAPPY_PANEL_FIX_KEY)) {
         const happyKeys = new Set(VARIANT_DEFAULTS['happy'] ?? []);
         let fixed = false;
@@ -502,13 +515,13 @@ export class App {
       console.log('[App] Loaded panel settings from storage:', Object.entries(panelSettings).filter(([_, v]) => !v.enabled).map(([k]) => k));
 
       // One-time migration: reorder panels for existing users (v1.9 panel layout)
-      const PANEL_ORDER_MIGRATION_KEY = 'chainflowx-panel-order-v1.9';
+      const PANEL_ORDER_MIGRATION_KEY = 'worldmonitor-panel-order-v1.9';
       if (!localStorage.getItem(PANEL_ORDER_MIGRATION_KEY)) {
         const savedOrder = localStorage.getItem(PANEL_ORDER_KEY);
         if (savedOrder) {
           try {
             const order: string[] = JSON.parse(savedOrder);
-            const priorityPanels = ['insights', 'cii'];
+            const priorityPanels = ['insights', 'strategic-posture', 'cii', 'strategic-risk'];
             const filtered = order.filter(k => !priorityPanels.includes(k) && k !== 'live-news');
             const liveNewsIdx = order.indexOf('live-news');
             const newOrder = liveNewsIdx !== -1 ? ['live-news'] : [];
@@ -525,7 +538,7 @@ export class App {
 
       // Tech variant migration: move insights to top (after live-news)
       if (currentVariant === 'tech') {
-        const TECH_INSIGHTS_MIGRATION_KEY = 'chainflowx-tech-insights-top-v1';
+        const TECH_INSIGHTS_MIGRATION_KEY = 'worldmonitor-tech-insights-top-v1';
         if (!localStorage.getItem(TECH_INSIGHTS_MIGRATION_KEY)) {
           const savedOrder = localStorage.getItem(PANEL_ORDER_KEY);
           if (savedOrder) {
@@ -548,7 +561,7 @@ export class App {
     }
 
     // One-time migration: prune removed panel keys from stored settings and order
-    const PANEL_PRUNE_KEY = 'chainflowx-panel-prune-v1';
+    const PANEL_PRUNE_KEY = 'worldmonitor-panel-prune-v1';
     if (!localStorage.getItem(PANEL_PRUNE_KEY)) {
       const validKeys = new Set(Object.keys(ALL_PANELS));
       let pruned = false;
@@ -573,7 +586,7 @@ export class App {
     }
 
     // One-time migration: clear stale panel ordering and sizing state
-    const LAYOUT_RESET_MIGRATION_KEY = 'chainflowx-layout-reset-v2.5';
+    const LAYOUT_RESET_MIGRATION_KEY = 'worldmonitor-layout-reset-v2.5';
     if (!localStorage.getItem(LAYOUT_RESET_MIGRATION_KEY)) {
       const hadSavedOrder = !!localStorage.getItem(PANEL_ORDER_KEY);
       const hadSavedSpans = !!localStorage.getItem(PANEL_SPANS_KEY);
@@ -612,7 +625,7 @@ export class App {
     }
     // One-time migration: reduce default-enabled sources (full variant only)
     if (currentVariant === 'full') {
-      const baseKey = 'chainflowx-sources-reduction-v3';
+      const baseKey = 'worldmonitor-sources-reduction-v3';
       if (!localStorage.getItem(baseKey)) {
         const defaultDisabled = computeDefaultDisabledSources();
         saveToStorage(STORAGE_KEYS.disabledFeeds, defaultDisabled);
@@ -622,7 +635,7 @@ export class App {
       }
       // Locale boost: additively enable locale-matched sources (runs once per locale)
       const userLang = ((navigator.language ?? 'en').split('-')[0] ?? 'en').toLowerCase();
-      const localeKey = `chainflowx-locale-boost-${userLang}`;
+      const localeKey = `worldmonitor-locale-boost-${userLang}`;
       if (userLang !== 'en' && !localStorage.getItem(localeKey)) {
         const boosted = getLocaleBoostedSources(userLang);
         if (boosted.size > 0) {
@@ -667,7 +680,7 @@ export class App {
       playbackControl: null,
       exportPanel: null,
       unifiedSettings: null,
-
+      pizzintIndicator: null,
       correlationEngine: null,
       llmStatusIndicator: null,
       countryBriefPage: null,
@@ -700,6 +713,7 @@ export class App {
     this.desktopUpdater = new DesktopUpdater(this.state);
 
     this.dataLoader = new DataLoaderManager(this.state, {
+      renderCriticalBanner: (postures) => this.panelLayout.renderCriticalBanner(postures),
       refreshOpenCountryBrief: () => this.countryIntel.refreshOpenBrief(),
     });
 
@@ -897,7 +911,19 @@ export class App {
     this.state.signalModal.setLocationClickHandler((lat, lon) => {
       this.state.map?.setCenter(lat, lon, 4);
     });
-
+    if (!this.state.isMobile) {
+      this.state.findingsBadge = new IntelligenceGapBadge();
+      this.state.findingsBadge.setOnSignalClick((signal) => {
+        if (this.state.countryBriefPage?.isVisible()) return;
+        if (localStorage.getItem('wm-settings-open') === '1') return;
+        this.state.signalModal?.showSignal(signal);
+      });
+      this.state.findingsBadge.setOnAlertClick((alert) => {
+        if (this.state.countryBriefPage?.isVisible()) return;
+        if (localStorage.getItem('wm-settings-open') === '1') return;
+        this.state.signalModal?.showAlert(alert);
+      });
+    }
 
     if (!this.state.isMobile) {
       initBreakingNewsAlerts();
@@ -908,6 +934,7 @@ export class App {
     this.eventHandlers.startHeaderClock();
     this.eventHandlers.setupPlaybackControl();
     this.eventHandlers.setupStatusPanel();
+    this.eventHandlers.setupPizzIntIndicator();
     this.eventHandlers.setupLlmStatusIndicator();
     this.eventHandlers.setupExportPanel();
 
@@ -920,7 +947,7 @@ export class App {
     this.state.correlationEngine = correlationEngine;
     this.eventHandlers.setupUnifiedSettings();
     // TODO: isProUser() gate should be removed when we are ready to get new users signing up
-    this.eventHandlers.setupAuthWidget();
+    if (isProUser()) this.eventHandlers.setupAuthWidget();
     const pendingCheckout = capturePendingCheckoutIntentFromUrl();
     if (pendingCheckout) {
       // Checkout intent from /pro page redirect. Resume immediately if
@@ -975,13 +1002,14 @@ export class App {
     // Initial correlation engine run
     if (this.state.correlationEngine) {
       void this.state.correlationEngine.run(this.state).then(() => {
-        for (const domain of ['economic', 'disaster'] as const) {
+        for (const domain of ['military', 'escalation', 'economic', 'disaster'] as const) {
           const panel = this.state.panels[`${domain}-correlation`] as CorrelationPanel | undefined;
           panel?.updateCards(this.state.correlationEngine!.getCards(domain));
         }
       });
     }
 
+    startLearning();
 
     // Hide unconfigured layers after first data load
     if (!isAisConfigured()) {
@@ -1151,6 +1179,7 @@ export class App {
           intervalMs: REFRESH_INTERVALS.forecasts,
           condition: () => this.isPanelNearViewport('forecast'),
         },
+        { name: 'pizzint', fn: () => this.dataLoader.loadPizzInt(), intervalMs: REFRESH_INTERVALS.pizzint, condition: () => SITE_VARIANT === 'full' },
         { name: 'natural', fn: () => this.dataLoader.loadNatural(), intervalMs: REFRESH_INTERVALS.natural, condition: () => this.state.mapLayers.natural },
         { name: 'weather', fn: () => this.dataLoader.loadWeatherAlerts(), intervalMs: REFRESH_INTERVALS.weather, condition: () => this.state.mapLayers.weather },
         { name: 'fred', fn: () => this.dataLoader.loadFredData(), intervalMs: REFRESH_INTERVALS.fred, condition: () => this.isPanelNearViewport('economic') },
@@ -1224,6 +1253,12 @@ export class App {
       () => this.isPanelNearViewport('macro-signals')
     );
     this.refreshScheduler.scheduleRefresh(
+      'defense-patents',
+      () => { (this.state.panels['defense-patents'] as DefensePatentsPanel).refresh(); return Promise.resolve(); },
+      REFRESH_INTERVALS.defensePatents,
+      () => this.isPanelNearViewport('defense-patents')
+    );
+    this.refreshScheduler.scheduleRefresh(
       'fear-greed',
       () => (this.state.panels['fear-greed'] as FearGreedPanel).fetchData(),
       REFRESH_INTERVALS.fearGreed,
@@ -1234,6 +1269,18 @@ export class App {
       () => (this.state.panels['hormuz-tracker'] as HormuzPanel).fetchData(),
       REFRESH_INTERVALS.hormuzTracker,
       () => this.isPanelNearViewport('hormuz-tracker')
+    );
+    this.refreshScheduler.scheduleRefresh(
+      'strategic-posture',
+      () => (this.state.panels['strategic-posture'] as StrategicPosturePanel).refresh(),
+      REFRESH_INTERVALS.strategicPosture,
+      () => this.isPanelNearViewport('strategic-posture')
+    );
+    this.refreshScheduler.scheduleRefresh(
+      'strategic-risk',
+      () => (this.state.panels['strategic-risk'] as StrategicRiskPanel).refresh(),
+      REFRESH_INTERVALS.strategicRisk,
+      () => this.isPanelNearViewport('strategic-risk')
     );
 
     // Server-side temporal anomalies (news + satellite_fires)
@@ -1311,6 +1358,12 @@ export class App {
       () => this.isPanelNearViewport('macro-tiles')
     );
     this.refreshScheduler.scheduleRefresh(
+      'fsi',
+      () => (this.state.panels['fsi'] as FSIPanel).fetchData(),
+      REFRESH_INTERVALS.fsi,
+      () => this.isPanelNearViewport('fsi')
+    );
+    this.refreshScheduler.scheduleRefresh(
       'yield-curve',
       () => (this.state.panels['yield-curve'] as YieldCurvePanel).fetchData(),
       REFRESH_INTERVALS.yieldCurve,
@@ -1353,7 +1406,7 @@ export class App {
         const engine = this.state.correlationEngine;
         if (!engine) return;
         await engine.run(this.state);
-        for (const domain of ['economic', 'disaster'] as const) {
+        for (const domain of ['military', 'escalation', 'economic', 'disaster'] as const) {
           const panel = this.state.panels[`${domain}-correlation`] as CorrelationPanel | undefined;
           panel?.updateCards(engine.getCards(domain));
         }

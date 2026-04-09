@@ -38,6 +38,8 @@ export const REFRESH_INTERVALS = {
   etfFlows: 15 * 60 * 1000,
   macroSignals: 15 * 60 * 1000,
   fearGreed: 30 * 60 * 1000,
+  strategicPosture: 15 * 60 * 1000,
+  strategicRisk: 5 * 60 * 1000,
   temporalBaseline: 10 * 60 * 1000,
   tradePolicy: 60 * 60 * 1000,
   supplyChain: 60 * 60 * 1000,
@@ -49,9 +51,11 @@ export const REFRESH_INTERVALS = {
   climateNews: 30 * 60 * 1000, // seeded every 30min; match cadence
   intelligence: 15 * 60 * 1000,
   correlationEngine: 5 * 60 * 1000,
+  defensePatents: 24 * 60 * 60 * 1000, // 24h — data is weekly, daily poll is sufficient
   crossSourceSignals: 15 * 60 * 1000,
   hormuzTracker: 60 * 60 * 1000, // 1h — data updates daily
   macroTiles: 30 * 60 * 1000,
+  fsi: 30 * 60 * 1000,
   yieldCurve: 30 * 60 * 1000,
   earningsCalendar: 60 * 60 * 1000,
   economicCalendar: 60 * 60 * 1000,
@@ -74,14 +78,14 @@ export const MONITOR_COLORS = [
 
 // Storage keys - shared
 export const STORAGE_KEYS = {
-  panels: 'chainflowx-panels',
-  monitors: 'chainflowx-monitors',
-  mapLayers: 'chainflowx-layers',
-  disabledFeeds: 'chainflowx-disabled-feeds',
-  liveChannels: 'chainflowx-live-channels',
-  mapMode: 'chainflowx-map-mode',          // 'flat' | 'globe'
-  activeChannel: 'chainflowx-active-channel',
-  webcamPrefs: 'chainflowx-webcam-prefs',
+  panels: 'worldmonitor-panels',
+  monitors: 'worldmonitor-monitors',
+  mapLayers: 'worldmonitor-layers',
+  disabledFeeds: 'worldmonitor-disabled-feeds',
+  liveChannels: 'worldmonitor-live-channels',
+  mapMode: 'worldmonitor-map-mode',          // 'flat' | 'globe'
+  activeChannel: 'worldmonitor-active-channel',
+  webcamPrefs: 'worldmonitor-webcam-prefs',
 } as const;
 
 // Type definitions for variant configs

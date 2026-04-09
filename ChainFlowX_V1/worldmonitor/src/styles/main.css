@@ -12181,7 +12181,7 @@ a.prediction-link:hover {
     display: none !important;
   }
 
-  /* Mobile: show "ChainFlowX" instead of "MONITOR" */
+  /* Mobile: show "World Monitor" instead of "MONITOR" */
   .logo {
     display: none;
   }

@@ -11,13 +11,13 @@ const sentryDsn = import.meta.env.VITE_SENTRY_DSN?.trim();
 // Initialize Sentry error tracking (early as possible)
 Sentry.init({
   dsn: sentryDsn || undefined,
-  release: `chainflowx@${__APP_VERSION__}`,
-  environment: (location.hostname === 'chainflowx.app' || location.hostname.endsWith('.chainflowx.app')) ? 'production'
+  release: `worldmonitor@${__APP_VERSION__}`,
+  environment: (location.hostname === 'worldmonitor.app' || location.hostname.endsWith('.worldmonitor.app')) ? 'production'
     : location.hostname.includes('vercel.app') ? 'preview'
     : 'development',
   enabled: Boolean(sentryDsn) && !location.hostname.startsWith('localhost') && !('__TAURI_INTERNALS__' in window),
   allowUrls: [
-    /https?:\/\/(www\.|tech\.|finance\.|commodity\.|happy\.)?chainflowx\.app/,
+    /https?:\/\/(www\.|tech\.|finance\.|commodity\.|happy\.)?worldmonitor\.app/,
     /https?:\/\/.*\.vercel\.app/,
   ],
   sendDefaultPii: true,
@@ -305,7 +305,7 @@ Sentry.init({
     if (frames.some(f => /www-widgetapi\.js/.test(f.filename ?? ''))) return null;
     // Suppress Sentry beacon XHR transport errors (readyState on aborted XHR — not our code)
     if (frames.some(f => /beacon\.min\.js/.test(f.filename ?? ''))) return null;
-    // Suppress "options is not defined" from browser extension overriding Navigator getter (CHAINFLOWX-JN).
+    // Suppress "options is not defined" from browser extension overriding Navigator getter (WORLDMONITOR-JN).
     // Only suppress when stack has no first-party frames (filename=<anonymous> is the extension getter).
     if (/^options is not defined$/.test(msg) && frames.every(f => !f.filename || f.filename === '<anonymous>' || f.filename === '[native code]')) return null;
     // Suppress TransactionInactiveError only when no first-party frames are present
@@ -457,7 +457,7 @@ initMetaTags();
 
 // In desktop mode, route /api/* calls to the local Tauri sidecar backend.
 installRuntimeFetchPatch();
-// In web production, route RPC calls through api.chainflowx.app (Cloudflare edge).
+// In web production, route RPC calls through api.worldmonitor.app (Cloudflare edge).
 installWebApiRedirect();
 loadDesktopSecrets().catch(() => {});
 
@@ -483,7 +483,7 @@ requestAnimationFrame(() => {
 });
 
 // Clear stale settings-open flag (survives ungraceful shutdown)
-localStorage.removeItem('cfx-settings-open');
+localStorage.removeItem('wm-settings-open');
 
 // Standalone windows: ?settings=1 = panel display settings, ?live-channels=1 = channel management
 // Both need i18n initialized so t() does not return undefined.
@@ -522,13 +522,13 @@ if (urlParams.get('settings') === '1') {
 // Beta mode toggle: type `beta=true` / `beta=false` in console
 Object.defineProperty(window, 'beta', {
   get() {
-    const on = localStorage.getItem('chainflowx-beta-mode') === 'true';
+    const on = localStorage.getItem('worldmonitor-beta-mode') === 'true';
     console.log(`[Beta] ${on ? 'ON' : 'OFF'}`);
     return on;
   },
   set(v: boolean) {
-    if (v) localStorage.setItem('chainflowx-beta-mode', 'true');
-    else localStorage.removeItem('chainflowx-beta-mode');
+    if (v) localStorage.setItem('worldmonitor-beta-mode', 'true');
+    else localStorage.removeItem('worldmonitor-beta-mode');
     location.reload();
   },
 });
@@ -548,8 +548,8 @@ if (!('__TAURI_INTERNALS__' in window) && !('__TAURI__' in window) && 'serviceWo
 
   const SW_UPDATE_SUCCESS_INTERVAL_MS = 60 * 60 * 1000;
   const SW_UPDATE_FAILURE_INTERVAL_MS = 5 * 60 * 1000;
-  const SW_UPDATE_LAST_CHECK_KEY = 'cfx-sw-last-update-check';
-  const SW_UPDATE_LAST_RESULT_KEY = 'cfx-sw-last-update-ok';
+  const SW_UPDATE_LAST_CHECK_KEY = 'wm-sw-last-update-check';
+  const SW_UPDATE_LAST_RESULT_KEY = 'wm-sw-last-update-ok';
 
   const readStorageNum = (key: string): number => {
     try {

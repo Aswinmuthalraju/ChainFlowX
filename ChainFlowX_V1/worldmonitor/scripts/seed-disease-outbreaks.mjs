@@ -54,17 +54,15 @@ function stableHash(str) {
  */
 function extractLocationFromTitle(title) {
   // WHO DON pattern: "Disease – Country" or "Disease - Country" (one or more dash-separated segments)
+  // Split on em-dash, en-dash, or " - " / " – " to get all segments, then take the last capitalized one.
   const segments = title.split(/\s*[–—]\s*|\s+-\s+/);
   if (segments.length >= 2) {
     const last = segments[segments.length - 1].trim();
     if (/^[A-Z]/.test(last)) return last;
   }
-  // Fallback: "... in [the] <Country/Region>"
-  const inMatch = title.match(/\bin\s+(?:the\s+)?([A-Z][^,.(]+)/i);
-  if (inMatch) {
-    const loc = inMatch[1].trim();
-    return loc.charAt(0).toUpperCase() + loc.slice(1);
-  }
+  // Fallback: "... in <Country/Region>"
+  const inMatch = title.match(/\bin\s+([A-Z][^,.(]+)/);
+  if (inMatch) return inMatch[1].trim();
   return '';
 }
 

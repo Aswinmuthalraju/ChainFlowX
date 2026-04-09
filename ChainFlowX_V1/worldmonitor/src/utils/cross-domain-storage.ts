@@ -1,8 +1,8 @@
-const COOKIE_DOMAIN = '.chainflowx.app';
+const COOKIE_DOMAIN = '.worldmonitor.app';
 const MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
 function usesCookies(): boolean {
-  return location.hostname.endsWith('chainflowx.app');
+  return location.hostname.endsWith('worldmonitor.app');
 }
 
 export function getDismissed(key: string): boolean {

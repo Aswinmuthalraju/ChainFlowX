@@ -10,7 +10,7 @@ const CACHE_TTL = 21600; // 6h — 6x the 1h cron interval (was 2x = survived on
 
 const TEST_SITES = [
   { name: 'Punggye-ri',    lat: 41.28, lon: 129.08 },
-  { name: 'Lop Nur',       lat: 41.75, lon: 88.35  }, // NTI/Wikipedia centroid — aligns with src/config/geo.ts
+  { name: 'Lop Nur',       lat: 41.39, lon: 89.03  },
   { name: 'Novaya Zemlya', lat: 73.37, lon: 54.78  },
   { name: 'Nevada NTS',    lat: 37.07, lon: -116.05 },
   { name: 'Semipalatinsk', lat: 50.07, lon: 78.43  },
