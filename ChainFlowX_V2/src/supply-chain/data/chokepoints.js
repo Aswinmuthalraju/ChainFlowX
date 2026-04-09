@@ -1,4 +1,4 @@
-export const CHOKEPOINTS = [
+const _CHOKEPOINTS_RAW = [
   {
     id: 'CHKPT-MALACCA',
     name: 'Malacca Strait',
@@ -66,3 +66,9 @@ export const CHOKEPOINTS = [
     riskFactors: ['weather', 'congestion_overflow'],
   },
 ];
+
+/** `tradeSharePct` aliases `tradeSharePercent` for tooltip / legacy label code. */
+export const CHOKEPOINTS = _CHOKEPOINTS_RAW.map((c) => ({
+  ...c,
+  tradeSharePct: c.tradeSharePercent,
+}));

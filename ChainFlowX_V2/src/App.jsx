@@ -5,7 +5,7 @@ import { synthesizeStrategicInsight } from './supply-chain/ai/qwenAI.js';
 import { PORTS } from './supply-chain/data/ports.js';
 import { ROUTES } from './supply-chain/data/routes.js';
 import { CHOKEPOINTS } from './supply-chain/data/chokepoints.js';
-import { startLiveEventFeed } from './supply-chain/data/liveEventFeed.js';
+import { startLiveEventFeed, liveArticleToPipelineEvent } from './supply-chain/data/liveEventFeed.js';
 import {
   startAllTransportTracking,
   stopAllTransportTracking,
@@ -20,6 +20,8 @@ import DNAMatchPanel from './supply-chain/components/DNAMatchPanel.jsx';
 import IndustryCascadePanel from './supply-chain/components/IndustryCascadePanel.jsx';
 import RouteDetailPanel from './supply-chain/components/RouteDetailPanel.jsx';
 import StrategicInsightPanel from './supply-chain/components/StrategicInsightPanel.jsx';
+import SupplyChainMonitor from './supply-chain/components/SupplyChainMonitor.jsx';
+import StrategicRiskOverview from './supply-chain/components/StrategicRiskOverview.jsx';
 import LiveNewsTicker from './supply-chain/components/LiveNewsTicker.jsx';
 import FeedStatusPanel from './supply-chain/components/FeedStatusPanel.jsx';
 import HeaderBar from './supply-chain/components/HeaderBar.jsx';
@@ -65,6 +67,13 @@ export default function App() {
     rail: true,
     pipelines: true,
   });
+  const [globeUnavailable, setGlobeUnavailable] = useState(false);
+
+  // V1 Layout States
+  const [sidebarWidth, setSidebarWidth] = useState(30);
+  const [globeHeight, setGlobeHeight] = useState(450);
+  const [isResizingH, setIsResizingH] = useState(false);
+  const [isResizingV, setIsResizingV] = useState(false);
 
   const isLoadingRef = useRef(false);
   const intelligenceRef = useRef(intelligenceOn);
@@ -73,6 +82,8 @@ export default function App() {
   const globeRef = useRef(null);
   const lastGlobeInteractRef = useRef(0);
   const trackingRefs = useRef({});
+  const didAutoInitRef = useRef(false);
+  const autoInitPendingRef = useRef(false);
 
   useEffect(() => {
     isLoadingRef.current = isLoading;
@@ -85,13 +96,13 @@ export default function App() {
     const g = buildGraph(PORTS, ROUTES, CHOKEPOINTS);
     const { valid, errors } = validateGraph(g);
     if (!valid) console.warn('[ChainFlowX] Graph issues:', errors);
-    else console.log('[ChainFlowX] Graph validated — all nodes and edges intact');
+    else console.log('[ChainFlowX] Graph validated');
     setGraph(g);
     setGraphValid(valid);
   }, []);
 
   const addGlobeRing = useCallback((ev) => {
-    const id = String(ev?.id || ev?.url || `ring-${Date.now()}`);
+    const id = String(ev?.id || ev?.url || "ring-" + Date.now());
     const sev = typeof ev?.severity === 'number' ? ev.severity : 0.65;
     const lat = ev?.lat;
     const lng = ev?.lng;
@@ -116,19 +127,24 @@ export default function App() {
   const handleEventTrigger = useCallback(
     async (event) => {
       if (!graph) return;
-
       if (!event) {
+        didAutoInitRef.current = false;
+        autoInitPendingRef.current = false;
         setEventState(null);
         setRoutes(ROUTES.map((r) => ({ ...r, currentRisk: r.baseRisk, status: 'normal' })));
         setSelectedRoute(null);
         setGlobeRings([]);
         return;
       }
-
-      if (!intelligenceRef.current) return;
-
+      if (!intelligenceRef.current) {
+        autoInitPendingRef.current = false;
+        return;
+      }
+      if (autoInitPendingRef.current) {
+        didAutoInitRef.current = true;
+        autoInitPendingRef.current = false;
+      }
       addGlobeRing(event);
-
       setIsLoading(true);
       try {
         const state = await runPipeline(event, graph);
@@ -143,6 +159,7 @@ export default function App() {
         const near = findNearestRoute(ROUTES, event.lat, event.lng);
         if (near) setSelectedRoute(near);
       } catch (err) {
+        didAutoInitRef.current = false;
         console.error('[ChainFlowX] Pipeline error:', err);
       } finally {
         setIsLoading(false);
@@ -154,6 +171,17 @@ export default function App() {
   useEffect(() => {
     pipelineHandlerRef.current = handleEventTrigger;
   }, [handleEventTrigger]);
+
+  useEffect(() => {
+    if (!graph || !intelligenceOn || isLoading || eventState) return;
+    if (!liveArticles.length || didAutoInitRef.current) return;
+    const first =
+      liveArticles.find(
+        (a) => (a.displayRelevance ?? a.keyword?.supplyChainRelevance ?? 0) >= 0.35,
+      ) || liveArticles[0];
+    autoInitPendingRef.current = true;
+    void handleEventTrigger(liveArticleToPipelineEvent(first));
+  }, [graph, intelligenceOn, isLoading, eventState, liveArticles, handleEventTrigger]);
 
   useEffect(() => {
     const refs = startAllTransportTracking({
@@ -214,6 +242,54 @@ export default function App() {
     }
   };
 
+  // V1 Resizer Logic
+  const startResizingH = useCallback((e) => {
+    e.preventDefault();
+    setIsResizingH(true);
+  }, []);
+
+  const startResizingV = useCallback((e) => {
+    e.preventDefault();
+    setIsResizingV(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizingH(false);
+    setIsResizingV(false);
+  }, []);
+
+  const resize = useCallback((e) => {
+    if (isResizingH) {
+      const newWidth = 100 - (e.clientX / window.innerWidth) * 100;
+      setSidebarWidth(Math.min(Math.max(newWidth, 15), 60));
+    }
+    if (isResizingV) {
+      const globeContainer = document.querySelector('.globe-container');
+      if (globeContainer) {
+        const top = globeContainer.getBoundingClientRect().top;
+        const newHeight = e.clientY - top;
+        setGlobeHeight(Math.min(Math.max(newHeight, 200), 1200));
+      }
+    }
+  }, [isResizingH, isResizingV]);
+
+  useEffect(() => {
+    if (isResizingH || isResizingV) {
+      document.body.style.userSelect = 'none';
+      window.addEventListener('mousemove', resize);
+      window.addEventListener('mouseup', stopResizing);
+    } else {
+      document.body.style.userSelect = 'auto';
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    }
+    return () => {
+      document.body.style.userSelect = 'auto';
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [isResizingH, isResizingV, resize, stopResizing]);
+
   const showRouteInRight = !!(eventState && selectedRoute);
 
   const bannerHeadline = eventState?.raw?.headline ?? '';
@@ -232,11 +308,10 @@ export default function App() {
   const visibleRail = layerVisibility.rail ? RAIL_CORRIDORS : [];
   const visiblePipelines = layerVisibility.pipelines ? PIPELINE_CORRIDORS : [];
 
-  const overlayTop = eventState ? 80 : 50;
-
   return (
     <div className="app-container wm-app-root">
-      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50, width: '100%' }}>
+      {/* V1 Layout Header injected with V2 HeaderBar */}
+      <div style={{ zIndex: 50, position: 'relative' }}>
         <HeaderBar
           routeCount={ROUTES.length}
           rippleIndex={rippleRaw}
@@ -252,18 +327,23 @@ export default function App() {
         />
       </div>
 
+      <div className="tagline-bar">
+        <span className="tagline-text">
+          "We don't show you a risk score — we show you the wave."
+        </span>
+      </div>
+
       {eventState && (
-        <div className="event-banner" style={{ position: 'fixed', top: 44, left: 0, right: 0, zIndex: 45 }}>
+        <div className="event-banner">
           <span className="event-banner-label">ACTIVE EVENT</span>
           <span className="event-banner-headline">
-            {bannerHeadline.length > 90 ? `${bannerHeadline.substring(0, 90)}…` : bannerHeadline}
+            {bannerHeadline.length > 90 ? bannerHeadline.substring(0, 90) + '…' : bannerHeadline}
           </span>
           {rippleRaw != null && (
             <span
               className="event-banner-score"
               style={{
-                color:
-                  rippleRaw >= 8 ? '#ff3b3b' : rippleRaw >= 6 ? '#ff6b35' : rippleRaw >= 4 ? '#ffb800' : '#00ff88',
+                color: rippleRaw >= 8 ? '#ff3b3b' : rippleRaw >= 6 ? '#ff6b35' : rippleRaw >= 4 ? '#ffb800' : '#00ff88',
               }}
             >
               RIPPLE {eventState.rippleScore?.score} · {rippleLabel}
@@ -275,157 +355,161 @@ export default function App() {
         </div>
       )}
 
-      <div
-        className="cfx-globe-backdrop"
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          zIndex: 0,
-          pointerEvents: 'auto',
-        }}
-      >
-        {graph && (
-          <SupplyChainGlobe
-            ref={globeRef}
-            routes={routes}
-            chokepoints={CHOKEPOINTS}
-            eventState={eventState}
-            onRouteSelect={setSelectedRoute}
-            mapMode={mapMode}
-            eventRings={globeRings}
-            onGlobeUserInteract={handleGlobeUserInteract}
-            liveVessels={visibleVessels}
-            liveAircraft={visibleAircraft}
-            visibleRail={visibleRail}
-            visiblePipelines={visiblePipelines}
-          />
-        )}
-
-        <LayerToggle
-          layerVisibility={layerVisibility}
-          onToggle={(layerName, enabled) =>
-            setLayerVisibility((prev) => ({ ...prev, [layerName]: enabled }))
-          }
-        />
-
-        {isLoading && (
-          <>
-            <div className="pipeline-progress" style={{ bottom: 32 }}>
-              <div className="pipeline-progress-fill" />
-            </div>
-            <div className="loading-text-overlay" style={{ bottom: 44 }}>
-              ANALYZING SUPPLY CHAIN · 6-LAYER PIPELINE
-            </div>
-          </>
-        )}
-
-        <div className="globe-status-bar wm-globe-status-bar" style={{ bottom: 32 }}>
-          <span>GDELT + RSS · LIVE</span>
-          <span className="status-sep">·</span>
-          <span style={{ color: graphValid ? '#00ff88' : '#ff3b3b' }}>GRAPH {graphValid ? 'OK' : 'ERR'}</span>
-          <span className="status-sep">·</span>
-          <span style={{ color: eventState ? '#00d4ff' : 'var(--muted)' }}>
-            {eventState ? 'PIPELINE ACTIVE' : 'MONITORING'}
-          </span>
-          <span className="status-sep">·</span>
-          <span>
-            {ROUTES.length} ROUTES · {CHOKEPOINTS.length} CHOKE · {liveArticles.length} FEED
-          </span>
-        </div>
-      </div>
-
-      <div
-        className="cfx-overlay-news"
-        style={{
-          position: 'absolute',
-          top: overlayTop,
-          left: 0,
-          width: 320,
-          height: 'calc(100vh - 90px)',
-          zIndex: 12,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'rgba(11, 17, 24, 0.92)',
-          borderRight: '1px solid rgba(0, 255, 255, 0.12)',
-          pointerEvents: 'auto',
-        }}
-      >
-        <LiveNewsTicker
-          articles={liveArticles}
-          feedUpdatedAt={feedUpdatedAt}
-          maxItems={50}
-          activeDnaMatch={activeDna}
-          onGlobeFocus={(lat, lng) => handleGlobeFocus(lat, lng)}
-          onEventSelect={(ev) => {
-            if (!intelligenceOn || isLoading) return;
-            handleEventTrigger(ev);
-          }}
-        />
-      </div>
-
-      <aside
-        className="cfx-overlay-intel"
-        style={{
-          position: 'absolute',
-          top: overlayTop,
-          right: 0,
-          width: 280,
-          height: 'calc(100vh - 90px)',
-          zIndex: 12,
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'rgba(0, 10, 20, 0.94)',
-          borderLeft: '1px solid rgba(0, 255, 255, 0.15)',
-          overflow: 'hidden',
-          pointerEvents: 'auto',
-        }}
-      >
-        <div className="wm-intelligence-panel" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-          <button
-            type="button"
-            className="trigger-btn"
-            onClick={() => handleEventTrigger(null)}
-            disabled={isLoading}
-            style={{ width: '100%', marginBottom: 8 }}
-          >
-            <span className="scene-num">RESET</span>
-            <span className="scene-label-text">Clear active event</span>
-          </button>
-
-          {showRouteInRight ? (
-            <div className="route-detail-wrapper" style={{ padding: 0, borderTop: 'none' }}>
-              <div className="route-detail-header" style={{ marginBottom: 8 }}>
-                <span className="route-detail-label">Route Analysis</span>
-                <button type="button" className="route-close-btn" onClick={() => setSelectedRoute(null)}>
-                  ×
-                </button>
-              </div>
-              <RouteDetailPanel
-                route={selectedRoute}
-                altRoute={eventState?.altRoutes?.[selectedRoute.id]}
-                onClose={() => setSelectedRoute(null)}
+      {/* V1 Main Dashboard Grid */}
+      <main className="dashboard-container" style={{ paddingBottom: '32px' }}>
+        {/* Left Section (Globe + Metrics) */}
+        <div className="left-section" style={{ flex: 1, minWidth: 0 }}>
+          <div className="globe-container" style={{ flex: `0 0 ${globeHeight}px`, position: 'relative' }}>
+            {graph && (
+              <SupplyChainGlobe
+                ref={globeRef}
+                routes={routes}
+                chokepoints={CHOKEPOINTS}
+                eventState={eventState}
+                onRouteSelect={setSelectedRoute}
+                mapMode={mapMode}
+                eventRings={globeRings}
+                onGlobeUserInteract={handleGlobeUserInteract}
+                onGlobeInitError={() => {
+                  setGlobeUnavailable(true);
+                  setMapMode('2d');
+                }}
+                liveVessels={visibleVessels}
+                liveAircraft={visibleAircraft}
+                visibleRail={visibleRail}
+                visiblePipelines={visiblePipelines}
               />
+            )}
+
+            {globeUnavailable && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 52,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 25,
+                  padding: '8px 14px',
+                  background: 'rgba(11,17,24,0.95)',
+                  border: '1px solid rgba(255,184,0,0.4)',
+                  color: '#ffb800',
+                  fontFamily: "'Space Mono', monospace",
+                  fontSize: '10px',
+                  pointerEvents: 'none',
+                }}
+              >
+                Globe unavailable — fallback to 2D mode
+              </div>
+            )}
+
+            <LayerToggle
+              layerVisibility={layerVisibility}
+              onToggle={(layerName, enabled) =>
+                setLayerVisibility((prev) => ({ ...prev, [layerName]: enabled }))
+              }
+            />
+
+            {isLoading && (
+              <>
+                <div className="pipeline-progress" style={{ bottom: 32 }}>
+                  <div className="pipeline-progress-fill" />
+                </div>
+                <div className="loading-text-overlay" style={{ bottom: 44 }}>
+                  ANALYZING SUPPLY CHAIN · 6-LAYER PIPELINE
+                </div>
+              </>
+            )}
+
+            <div className="globe-status-bar wm-globe-status-bar" style={{ bottom: 10 }}>
+              <span>GDELT + RSS · LIVE</span>
+              <span className="status-sep">·</span>
+              <span style={{ color: graphValid ? '#00ff88' : '#ff3b3b' }}>GRAPH {graphValid ? 'OK' : 'ERR'}</span>
+              <span className="status-sep">·</span>
+              <span style={{ color: eventState ? '#00d4ff' : 'var(--muted)' }}>
+                {eventState ? 'PIPELINE ACTIVE' : 'MONITORING'}
+              </span>
+              <span className="status-sep">·</span>
+              <span>
+                {ROUTES.length} ROUTES · {CHOKEPOINTS.length} CHOKE · {liveArticles.length} FEED
+              </span>
             </div>
-          ) : (
-            <>
+          </div>
+
+          <div className={`resizer-vertical ${isResizingV ? 'resizing' : ''}`} onMouseDown={startResizingV} />
+
+          <div className="bottom-metrics-scroll" style={{ flex: 1 }}>
+            <div className="metrics-row-1">
               <RippleScorePanel rippleScore={eventState?.rippleScore} />
               <DNAMatchPanel dnaMatch={eventState?.dnaMatch?.[0]} />
-              {eventState?.rippleScore && (
-                <IndustryCascadePanel industryCascade={eventState?.industryCascade} />
+            </div>
+
+            <div className="metrics-row-2">
+              <IndustryCascadePanel industryCascade={eventState?.industryCascade} />
+              {selectedRoute ? (
+                <div className="panel">
+                  <div className="route-detail-header" style={{ marginBottom: 8 }}>
+                    <span className="route-detail-label">Strategic Risk Overview</span>
+                    <button className="route-close-btn" onClick={() => setSelectedRoute(null)}>
+                      ×
+                    </button>
+                  </div>
+                  <RouteDetailPanel
+                    route={selectedRoute}
+                    altRoute={eventState?.altRoutes?.[selectedRoute.id]}
+                    onClose={() => setSelectedRoute(null)}
+                  />
+                </div>
+              ) : (
+                <div className="wm-intelligence-panel" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <SupplyChainMonitor eventState={eventState} articles={liveArticles} />
+                  <StrategicRiskOverview eventState={eventState} articles={liveArticles} />
+                </div>
               )}
-              <StrategicInsightPanel
-                eventState={eventState}
-                onGenerateInsight={handleGenerateInsight}
-                insightLoading={insightLoading}
-              />
-            </>
-          )}
+            </div>
+          </div>
         </div>
-      </aside>
+
+        <div className={`resizer-horizontal ${isResizingH ? 'resizing' : ''}`} onMouseDown={startResizingH} />
+
+        {/* Right Sidebar (Live Ticker + AI Integration) */}
+        <div className="right-sidebar" style={{ width: `${sidebarWidth}%`, flex: 'none' }}>
+          
+          <div className="ai-panel">
+            <button
+              type="button"
+              className="trigger-btn"
+              onClick={() => handleEventTrigger(null)}
+              disabled={isLoading}
+              style={{ width: '100%', marginBottom: 12 }}
+            >
+              <span className="scene-num">RESET</span>
+              <span className="scene-label-text">Clear active event</span>
+            </button>
+            <StrategicInsightPanel
+              eventState={eventState}
+              onGenerateInsight={handleGenerateInsight}
+              insightLoading={insightLoading}
+            />
+          </div>
+
+          <div className="live-feed-panel" style={{ flex: 1, minHeight: 0, paddingBottom: '32px' }}>
+            <div className="scene-section-label">Live Threat Intelligence</div>
+            <div style={{ height: 'calc(100% - 24px)', overflow: 'hidden' }}>
+              <LiveNewsTicker
+                articles={liveArticles}
+                feedUpdatedAt={feedUpdatedAt}
+                maxItems={50}
+                activeDnaMatch={activeDna}
+                onGlobeFocus={(lat, lng) => handleGlobeFocus(lat, lng)}
+                onEventSelect={(ev) => {
+                  if (!intelligenceOn || isLoading) return;
+                  handleEventTrigger(ev);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </main>
 
       <TickerBar articles={liveArticles} />
       <FeedStatusPanel />
