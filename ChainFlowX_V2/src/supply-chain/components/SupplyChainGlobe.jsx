@@ -61,7 +61,7 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect, selectedRou
   const toPts = (coords) =>
     coords.map(([lng, lat]) => `${toX(lng).toFixed(1)},${toY(lat).toFixed(1)}`).join(' ');
 
-  // Simplified continent polygons as [lng, lat] pairs
+  // Simplified continent polygons as [lng, lat] pairs - kept for reference but not rendered
   const CONTINENTS = [
     // North America
     [[-165,60],[-130,55],[-124,48],[-117,33],[-110,23],[-83,10],[-77,8],[-80,26],[-75,36],[-70,42],[-60,46],[-52,47],[-60,63],[-80,70],[-100,73],[-140,70],[-165,60]],
@@ -87,33 +87,37 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect, selectedRou
       viewBox={`0 0 ${W} ${H}`}
       style={{ width: '100%', height: '100%', display: 'block', background: '#060a0f' }}
     >
-      <rect x="0" y="0" width={W} height={H} fill="#050b12" />
+      <rect x="0" y="0" width={W} height={H} fill="#060a0f" />
 
-      {/* Continent silhouettes */}
-      <g opacity={0.18} fill="#3d5c6e" stroke="#5a7a8a" strokeWidth="0.5">
-        {CONTINENTS.map((pts, i) => (
-          <polygon key={i} points={toPts(pts)} />
-        ))}
-      </g>
+      <image
+        href="/textures/earth-topo-bathy.jpg"
+        x="0"
+        y="0"
+        width={W}
+        height={H}
+        preserveAspectRatio="none"
+        opacity="0.75"
+      />
+      <rect x="0" y="0" width={W} height={H} fill="rgba(6,10,15,0.32)" />
 
       {latLines.map((lat, i) => {
         const y = toY(lat);
-        return i % 2 === 0 ? (
-          <rect key={`band${lat}`} x={0} y={y - 41.7} width={W} height={83.3} fill="rgba(14,22,35,0.4)" />
-        ) : null;
+        return i % 2 === 0
+          ? <rect key={`band${lat}`} x={0} y={y - 41.7} width={W} height={83.3} fill="rgba(9,14,23,0.26)" />
+          : null;
       })}
 
-      {latLines.map((lat) => (
-        <line key={`lat${lat}`} x1={0} y1={toY(lat)} x2={W} y2={toY(lat)} stroke="#1e2d3d" strokeWidth="0.5" />
+      {latLines.map(lat => (
+        <line key={`lat${lat}`} x1={0} y1={toY(lat)} x2={W} y2={toY(lat)} stroke="rgba(152,185,212,0.2)" strokeWidth="0.6" />
       ))}
-      <line x1={0} y1={toY(0)} x2={W} y2={toY(0)} stroke="#1e2d3d" strokeWidth="1" />
-      {lngLines.map((lng) => (
-        <line key={`lng${lng}`} x1={toX(lng)} y1={0} x2={toX(lng)} y2={H} stroke="#1e2d3d" strokeWidth="0.5" />
+      <line x1={0} y1={toY(0)} x2={W} y2={toY(0)} stroke="rgba(152,185,212,0.34)" strokeWidth="1.2" />
+      {lngLines.map(lng => (
+        <line key={`lng${lng}`} x1={toX(lng)} y1={0} x2={toX(lng)} y2={H} stroke="rgba(152,185,212,0.2)" strokeWidth="0.6" />
       ))}
-      <line x1={toX(0)} y1={0} x2={toX(0)} y2={H} stroke="#1e2d3d" strokeWidth="1" />
+      <line x1={toX(0)} y1={0} x2={toX(0)} y2={H} stroke="rgba(152,185,212,0.34)" strokeWidth="1.2" />
 
-      {latLines.map((lat) => (
-        <text key={`llbl${lat}`} x={4} y={toY(lat) - 2} fill="#1e2d3d" fontSize="8" fontFamily="Space Mono, monospace">
+      {latLines.map(lat => (
+        <text key={`llbl${lat}`} x={4} y={toY(lat) - 2} fill="rgba(192,214,230,0.55)" fontSize="8" fontFamily="Space Mono, monospace">
           {lat > 0 ? `${lat}N` : lat < 0 ? `${Math.abs(lat)}S` : 'EQ'}
         </text>
       ))}
@@ -166,29 +170,16 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect, selectedRou
           );
         })}
 
-      {routes &&
-        routes
-          .map((route) => [route.from, route.to])
-          .flat()
-          .filter((p, i, arr) => arr.findIndex((q) => q.name === p.name) === i)
-          .map((port) => (
-            <circle
-              key={port.name}
-              cx={toX(port.lng)}
-              cy={toY(port.lat)}
-              r={2.5}
-              fill="#1e2d3d"
-              stroke="#00d4ff"
-              strokeWidth={0.7}
-              opacity={0.8}
-            />
-          ))}
+      {routes && routes.map(route => [route.from, route.to]).flat().filter((p, i, arr) =>
+        arr.findIndex(q => q.name === p.name) === i
+      ).map(port => (
+        <circle key={port.name} cx={toX(port.lng)} cy={toY(port.lat)} r={2.5} fill="#0a1420" stroke="#8ad9ff" strokeWidth={0.8} opacity={0.9} />
+      ))}
 
       {chokepoints &&
         chokepoints.map((cp) => {
           const isAffected = eventState?.classified?.nearestChokepoint === cp.id;
-          const cx = toX(cp.lng),
-            cy = toY(cp.lat);
+          const cx = toX(cp.lng), cy = toY(cp.lat);
           return (
             <g key={cp.id}>
               {isAffected && (
@@ -201,18 +192,18 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect, selectedRou
               <text
                 x={cx + 6}
                 y={cy + 3}
-                fill={isAffected ? '#ff3b3b' : '#5a7a8a'}
+                fill={isAffected ? '#ff3b3b' : '#9ec6dd'}
                 fontSize="7"
                 fontFamily="Space Mono, monospace"
               >
-                {cp.name.length > 22 ? `${cp.name.slice(0, 20)}…` : cp.name}
+                {cp.name}
               </text>
             </g>
           );
         })}
 
-      <text x={4} y={H - 4} fill="#1e2d3d" fontSize="7" fontFamily="Space Mono, monospace">
-        CHAINFLOWX · EQUIRECTANGULAR · 2D MODE
+      <text x={4} y={H - 4} fill="rgba(192,214,230,0.5)" fontSize="7" fontFamily="Space Mono, monospace">
+        CHAINFLOWX · REAL-TEXTURE EQUIRECTANGULAR · 2D MODE
       </text>
     </svg>
   );
@@ -529,16 +520,6 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
       lng: v.lng,
     }));
 
-    const routeVesselEls = (displayRoutes || [])
-      .filter((route) => route.currentPosition && route.type === 'maritime')
-      .map((route) => ({
-        type: 'route_vessel',
-        keyId: `rv-${route.id}`,
-        lat: route.currentPosition.lat,
-        lng: route.currentPosition.lng,
-        route,
-      }));
-
     const airEls = (liveAircraft || []).map((a) => ({
       ...a,
       type: 'aircraft',
@@ -566,7 +547,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
       commodity: r.commodity,
     }));
 
-    const allHtmlPoints = [...chokeEls, ...vesselEls, ...routeVesselEls, ...airEls, ...pipeEls, ...railEls];
+    const allHtmlPoints = [...chokeEls, ...vesselEls, ...airEls, ...pipeEls, ...railEls];
 
     globe
       .htmlElementsData(allHtmlPoints)
@@ -637,21 +618,6 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
               lat: d.lat,
               lng: d.lng,
             });
-          };
-          return el;
-        }
-
-        if (d.type === 'route_vessel') {
-          el.innerHTML = '●';
-          el.style.cssText = `
-            font-size: 9px; line-height: 1; cursor: pointer;
-            pointer-events: auto; user-select: none;
-            color: #00ffff; text-shadow: 0 0 6px #00ffff;
-          `;
-          el.title = `${d.route.name} | ${Math.round((d.route.currentPosition?.fraction || 0) * 100)}% complete`;
-          el.onclick = (ev) => {
-            ev.stopPropagation();
-            onRouteSelect && onRouteSelect(d.route);
           };
           return el;
         }

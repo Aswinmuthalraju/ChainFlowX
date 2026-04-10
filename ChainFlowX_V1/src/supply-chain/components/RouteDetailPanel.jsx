@@ -31,7 +31,13 @@ export default function RouteDetailPanel({ route, altRoute, onClose }) {
         </div>
         {onClose && (
           <button
-            onClick={onClose}
+            onClick={() => {
+              try {
+                onClose();
+              } catch (err) {
+                console.error('[ChainFlowX] Route detail close failed:', err);
+              }
+            }}
             className="text-gray-600 hover:text-gray-400 text-sm w-6 h-6 flex items-center justify-center rounded hover:bg-cfx-dark transition-colors cursor-pointer"
           >
             ×

@@ -74,7 +74,17 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
       ))}
 
       {routes && routes.map(route => (
-        <g key={route.id} style={{ cursor: 'pointer' }} onClick={() => onRouteSelect && onRouteSelect(route)}>
+        <g
+          key={route.id}
+          style={{ cursor: 'pointer' }}
+          onClick={() => {
+            try {
+              onRouteSelect && onRouteSelect(route);
+            } catch (err) {
+              console.error('[ChainFlowX] Route selection failed:', err);
+            }
+          }}
+        >
           {(route.status === 'critical' || route.status === 'severe') && (
             <path d={arcPath(route.from, route.to)} fill="none" stroke={arcColor(route.status)} strokeWidth={arcStroke(route.status) + 3} strokeOpacity={0.12} />
           )}

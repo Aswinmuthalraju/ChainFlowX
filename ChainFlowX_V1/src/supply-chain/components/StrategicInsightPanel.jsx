@@ -31,7 +31,13 @@ export default function StrategicInsightPanel({ eventState, onGenerateInsight, i
             Actionable decisions · Alternative routes · Cost impact · 7-day forecast · Industry risk windows
           </div>
           <button
-            onClick={onGenerateInsight}
+            onClick={() => {
+              try {
+                onGenerateInsight?.();
+              } catch (err) {
+                console.error('[ChainFlowX] Strategic insight button failed:', err);
+              }
+            }}
             disabled={insightLoading}
             className="w-full disabled:opacity-50 font-mono text-xs py-2.5 px-4 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             style={{

@@ -1,6 +1,8 @@
 import { safeParseAIJSON } from './aiUtils.js';
 import { buildChatCompletionsUrl } from './openaiCompat.js';
 
+const GEMMA_TIMEOUT_MS = 10_000;
+
 export function keywordClassifierFallback(headline, description) {
   const text = (headline + ' ' + description).toLowerCase();
   
@@ -55,9 +57,12 @@ Description: ${description}
         throw new Error("VITE_GEMMA_URL no defined");
     }
     const apiUrl = buildChatCompletionsUrl(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), GEMMA_TIMEOUT_MS);
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: promptText }],
@@ -65,6 +70,7 @@ Description: ${description}
         max_tokens: 400
       })
     });
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -75,6 +81,9 @@ Description: ${description}
     
     return safeParseAIJSON(rawText, keywordClassifierFallback(headline, description));
   } catch (e) {
+    if (e?.name === 'AbortError') {
+      console.warn('[ChainFlowX] gemmaAI timed out. Using fallback.');
+    }
     console.warn('[ChainFlowX] gemmaAI offline or failed. Using fallback:', e);
     return keywordClassifierFallback(headline, description);
   }

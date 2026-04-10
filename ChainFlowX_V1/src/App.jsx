@@ -141,29 +141,37 @@ export default function App() {
 
   // Scene button handler
   const handleSceneSelect = (scene) => {
-    if (isLoading) return;
-    if (!intelligenceOn && scene.key !== 'reset') return;
+    try {
+      if (isLoading) return;
+      if (!intelligenceOn && scene.key !== 'reset') return;
 
-    if (scene.key === 'reset') {
-      setActiveScene(null);
-      handleEventTrigger(null);
-    } else {
-      setActiveScene(scene.n);
-      const evt = DEMO_EVENT_MAP[scene.key];
-      if (evt) handleEventTrigger(liveifyDemoEvent(evt));
+      if (scene.key === 'reset') {
+        setActiveScene(null);
+        void handleEventTrigger(null);
+      } else {
+        setActiveScene(scene.n);
+        const evt = DEMO_EVENT_MAP[scene.key];
+        if (evt) void handleEventTrigger(liveifyDemoEvent(evt));
+      }
+    } catch (err) {
+      console.error('[ChainFlowX] Scene selection failed:', err);
     }
   };
 
   // Demo dropdown handler (kept for keyboard shortcut fallback)
   const handleDemoSelect = (e) => {
-    const val = e.target.value;
-    e.target.value = '';
-    if (!val) return;
-    if (val === 'reset') { handleEventTrigger(null); setActiveScene(null); return; }
-    const sceneMap = { cyclone: 2, blockage: 3, strike: 4, conflict: 5, earthquake: null };
-    setActiveScene(sceneMap[val] ?? null);
-    const evt = DEMO_EVENT_MAP[val];
-    if (evt) handleEventTrigger(liveifyDemoEvent(evt));
+    try {
+      const val = e.target.value;
+      e.target.value = '';
+      if (!val) return;
+      if (val === 'reset') { void handleEventTrigger(null); setActiveScene(null); return; }
+      const sceneMap = { cyclone: 2, blockage: 3, strike: 4, conflict: 5, earthquake: null };
+      setActiveScene(sceneMap[val] ?? null);
+      const evt = DEMO_EVENT_MAP[val];
+      if (evt) void handleEventTrigger(liveifyDemoEvent(evt));
+    } catch (err) {
+      console.error('[ChainFlowX] Demo selection failed:', err);
+    }
   };
 
   const handleGenerateInsight = async () => {
@@ -172,6 +180,8 @@ export default function App() {
     try {
       const insight = await synthesizeStrategicInsight(eventState);
       setEventState(prev => ({ ...prev, strategicInsight: insight }));
+    } catch (err) {
+      console.error('[ChainFlowX] Insight generation failed:', err);
     } finally {
       setInsightLoading(false);
     }
@@ -249,7 +259,13 @@ export default function App() {
           {/* 2D / 3D toggle */}
           <button
             className="map-mode-toggle"
-            onClick={() => setMapMode(p => p === '3d' ? '2d' : '3d')}
+            onClick={() => {
+              try {
+                setMapMode(p => p === '3d' ? '2d' : '3d');
+              } catch (err) {
+                console.error('[ChainFlowX] Map mode toggle failed:', err);
+              }
+            }}
           >
             <span className={mapMode === '3d' ? 'map-mode-active' : ''}>3D</span>
             <span className="map-mode-sep">/</span>
@@ -368,7 +384,13 @@ export default function App() {
                   <span className="route-detail-label">Strategic Risk Overview</span>
                   <button
                     className="route-close-btn"
-                    onClick={() => setSelectedRoute(null)}
+                    onClick={() => {
+                      try {
+                        setSelectedRoute(null);
+                      } catch (err) {
+                        console.error('[ChainFlowX] Route close failed:', err);
+                      }
+                    }}
                   >×</button>
                 </div>
                 <RouteDetailPanel

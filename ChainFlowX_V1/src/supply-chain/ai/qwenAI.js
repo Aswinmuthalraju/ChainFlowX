@@ -1,6 +1,8 @@
 import { safeParseAIJSON } from './aiUtils.js';
 import { buildChatCompletionsUrl } from './openaiCompat.js';
 
+const QWEN_TIMEOUT_MS = 20_000;
+
 export function templateSynthesisFallback(eventState) {
   const { classified, rippleScore, dnaMatch, altRoutes } = eventState;
   
@@ -59,9 +61,12 @@ Top Alert: ${eventState?.cascadeAlerts?.[0]?.message || 'None'}
         throw new Error("VITE_QWEN_URL no defined");
     }
     const apiUrl = buildChatCompletionsUrl(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), QWEN_TIMEOUT_MS);
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: promptText }],
@@ -69,6 +74,7 @@ Top Alert: ${eventState?.cascadeAlerts?.[0]?.message || 'None'}
         max_tokens: 600
       })
     });
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -85,6 +91,9 @@ Top Alert: ${eventState?.cascadeAlerts?.[0]?.message || 'None'}
     }
     return result;
   } catch (e) {
+    if (e?.name === 'AbortError') {
+      console.warn('[ChainFlowX] qwenAI timed out. Using fallback.');
+    }
     console.warn('[ChainFlowX] qwenAI offline or failed. Using fallback:', e);
     return templateSynthesisFallback(eventState);
   }
