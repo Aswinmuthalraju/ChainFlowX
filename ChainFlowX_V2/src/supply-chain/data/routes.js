@@ -1,3 +1,5 @@
+import { interpolateAlongGreatCircle } from '../geo/greatCircleArc.js';
+
 const CHOKEPOINT_TO_ID = {
   'Malacca Strait': 'CHKPT-MALACCA',
   'Suez Canal': 'CHKPT-SUEZ',
@@ -28,28 +30,12 @@ const FRACTION_SEED = {
   'SIN-LHR-AIR': 0.4,
 };
 
-function normalizeLng(lng) {
-  let value = lng;
-  while (value > 180) value -= 360;
-  while (value < -180) value += 360;
-  return value;
-}
-
-function interpolatePoint(from, to, fraction) {
-  const lat = from.lat + (to.lat - from.lat) * fraction;
-  let delta = to.lng - from.lng;
-  if (delta > 180) delta -= 360;
-  if (delta < -180) delta += 360;
-  const lng = normalizeLng(from.lng + delta * fraction);
-  return { lat, lng };
-}
-
 function withCurrentPosition(route) {
   const fraction = FRACTION_SEED[route.id] ?? 0.25;
   const now = Date.now();
   const totalMs = route.normalTransitHours * 3600 * 1000;
   const departureMs = now - totalMs * fraction;
-  const p = interpolatePoint(route.from, route.to, fraction);
+  const p = interpolateAlongGreatCircle(route.from.lat, route.from.lng, route.to.lat, route.to.lng, fraction);
 
   return {
     ...route,
@@ -74,7 +60,7 @@ export const ROUTES = [
     name: 'Shanghai to Rotterdam',
     type: 'maritime',
     from: { name: 'Shanghai Port', lat: 31.2304, lng: 121.4737, portId: 'PORT-SH', country: 'China' },
-    to: { name: 'Port of Rotterdam', lat: 51.9225, lng: 4.2828, portId: 'PORT-ROT', country: 'Netherlands' },
+    to: { name: 'Port of Rotterdam', lat: 51.9244, lng: 4.4777, portId: 'PORT-ROT', country: 'Netherlands' },
     normalTransitHours: 672,
     chokepoints: ['Malacca Strait', 'Suez Canal'],
     commodity: 'electronics',
@@ -117,8 +103,8 @@ export const ROUTES = [
     id: 'SIN-ROT-001',
     name: 'Singapore to Rotterdam',
     type: 'maritime',
-    from: { name: 'Port of Singapore', lat: 1.2558, lng: 103.8711, portId: 'PORT-SIN', country: 'Singapore' },
-    to: { name: 'Port of Rotterdam', lat: 51.9225, lng: 4.2828, portId: 'PORT-ROT', country: 'Netherlands' },
+    from: { name: 'Port of Singapore', lat: 1.3521, lng: 103.8198, portId: 'PORT-SIN', country: 'Singapore' },
+    to: { name: 'Port of Rotterdam', lat: 51.9244, lng: 4.4777, portId: 'PORT-ROT', country: 'Netherlands' },
     normalTransitHours: 480,
     chokepoints: ['Suez Canal'],
     commodity: 'consumer_goods',
@@ -140,7 +126,7 @@ export const ROUTES = [
     name: 'Dubai to Long Beach',
     type: 'maritime',
     from: { name: 'Jebel Ali Port', lat: 24.9774, lng: 55.1556, portId: 'PORT-DXB', country: 'UAE' },
-    to: { name: 'Port of Long Beach', lat: 33.7418, lng: -118.1937, portId: 'PORT-LB', country: 'USA' },
+    to: { name: 'Port of Long Beach', lat: 33.7542, lng: -118.2168, portId: 'PORT-LB', country: 'USA' },
     normalTransitHours: 480,
     chokepoints: ['Suez Canal', 'Panama Canal'],
     commodity: 'automotive',
@@ -162,7 +148,7 @@ export const ROUTES = [
     name: 'Hong Kong to Hamburg',
     type: 'maritime',
     from: { name: 'Port of Hong Kong', lat: 22.2793, lng: 114.1633, portId: 'PORT-HKG', country: 'Hong Kong' },
-    to: { name: 'Port of Hamburg', lat: 53.5511, lng: 9.9037, portId: 'PORT-HAM', country: 'Germany' },
+    to: { name: 'Port of Hamburg', lat: 53.5511, lng: 9.9937, portId: 'PORT-HAM', country: 'Germany' },
     normalTransitHours: 696,
     chokepoints: ['Malacca Strait', 'Suez Canal'],
     commodity: 'pharmaceuticals',
@@ -183,8 +169,8 @@ export const ROUTES = [
     id: 'TOK-NYC-001',
     name: 'Tokyo to New York',
     type: 'maritime',
-    from: { name: 'Port of Tokyo', lat: 35.4437, lng: 139.7662, portId: 'PORT-TOK', country: 'Japan' },
-    to: { name: 'Port of New York', lat: 40.6892, lng: -74.0445, portId: 'PORT-NYC', country: 'USA' },
+    from: { name: 'Port of Tokyo', lat: 35.6762, lng: 139.6503, portId: 'PORT-TOK', country: 'Japan' },
+    to: { name: 'Port of New York', lat: 40.7128, lng: -74.006, portId: 'PORT-NYC', country: 'USA' },
     normalTransitHours: 360,
     chokepoints: ['Panama Canal'],
     commodity: 'electronics',
@@ -205,8 +191,8 @@ export const ROUTES = [
     id: 'SIN-LA-001',
     name: 'Singapore to Los Angeles',
     type: 'maritime',
-    from: { name: 'Port of Singapore', lat: 1.2558, lng: 103.8711, portId: 'PORT-SIN', country: 'Singapore' },
-    to: { name: 'Port of Los Angeles', lat: 33.7365, lng: -118.2627, portId: 'PORT-LA', country: 'USA' },
+    from: { name: 'Port of Singapore', lat: 1.3521, lng: 103.8198, portId: 'PORT-SIN', country: 'Singapore' },
+    to: { name: 'Port of Los Angeles', lat: 34.0522, lng: -118.2437, portId: 'PORT-LA', country: 'USA' },
     normalTransitHours: 360,
     chokepoints: [],
     commodity: 'consumer_goods',
@@ -228,7 +214,7 @@ export const ROUTES = [
     name: 'Shanghai to Singapore',
     type: 'maritime',
     from: { name: 'Shanghai Port', lat: 31.2304, lng: 121.4737, portId: 'PORT-SH', country: 'China' },
-    to: { name: 'Port of Singapore', lat: 1.2558, lng: 103.8711, portId: 'PORT-SIN', country: 'Singapore' },
+    to: { name: 'Port of Singapore', lat: 1.3521, lng: 103.8198, portId: 'PORT-SIN', country: 'Singapore' },
     normalTransitHours: 96,
     chokepoints: ['Malacca Strait'],
     commodity: 'electronics',
@@ -272,7 +258,7 @@ export const ROUTES = [
     name: 'Hormuz to Rotterdam (Oil)',
     type: 'maritime',
     from: { name: 'Strait of Hormuz', lat: 26.5597, lng: 56.3647, portId: 'CHKPT-HORMUZ', country: 'Iran/Oman' },
-    to: { name: 'Port of Rotterdam', lat: 51.9225, lng: 4.2828, portId: 'PORT-ROT', country: 'Netherlands' },
+    to: { name: 'Port of Rotterdam', lat: 51.9244, lng: 4.4777, portId: 'PORT-ROT', country: 'Netherlands' },
     normalTransitHours: 432,
     chokepoints: ['Strait of Hormuz', 'Suez Canal'],
     commodity: 'oil',
@@ -294,7 +280,7 @@ export const ROUTES = [
     name: 'Hormuz to Singapore (LNG)',
     type: 'maritime',
     from: { name: 'Strait of Hormuz', lat: 26.5597, lng: 56.3647, portId: 'CHKPT-HORMUZ', country: 'Iran/Oman' },
-    to: { name: 'Port of Singapore', lat: 1.2558, lng: 103.8711, portId: 'PORT-SIN', country: 'Singapore' },
+    to: { name: 'Port of Singapore', lat: 1.3521, lng: 103.8198, portId: 'PORT-SIN', country: 'Singapore' },
     normalTransitHours: 240,
     chokepoints: ['Strait of Hormuz'],
     commodity: 'oil',
@@ -316,7 +302,7 @@ export const ROUTES = [
     name: 'Panama Canal to New York',
     type: 'maritime',
     from: { name: 'Panama Canal', lat: 9.082, lng: -79.5871, portId: 'CHKPT-PANAMA', country: 'Panama' },
-    to: { name: 'Port of New York', lat: 40.6892, lng: -74.0445, portId: 'PORT-NYC', country: 'USA' },
+    to: { name: 'Port of New York', lat: 40.7128, lng: -74.006, portId: 'PORT-NYC', country: 'USA' },
     normalTransitHours: 168,
     chokepoints: ['Panama Canal'],
     commodity: 'consumer_goods',
@@ -337,7 +323,7 @@ export const ROUTES = [
     id: 'LB-SH-EMPTY',
     name: 'Long Beach to Shanghai',
     type: 'maritime',
-    from: { name: 'Port of Long Beach', lat: 33.7418, lng: -118.1937, portId: 'PORT-LB', country: 'USA' },
+    from: { name: 'Port of Long Beach', lat: 33.7542, lng: -118.2168, portId: 'PORT-LB', country: 'USA' },
     to: { name: 'Shanghai Port', lat: 31.2304, lng: 121.4737, portId: 'PORT-SH', country: 'China' },
     normalTransitHours: 360,
     chokepoints: ['Panama Canal'],
@@ -360,7 +346,7 @@ export const ROUTES = [
     name: 'Bab el-Mandeb to Rotterdam',
     type: 'maritime',
     from: { name: 'Bab el-Mandeb', lat: 12.5848, lng: 43.3212, portId: 'CHKPT-BAB', country: 'Yemen/Djibouti' },
-    to: { name: 'Port of Rotterdam', lat: 51.9225, lng: 4.2828, portId: 'PORT-ROT', country: 'Netherlands' },
+    to: { name: 'Port of Rotterdam', lat: 51.9244, lng: 4.4777, portId: 'PORT-ROT', country: 'Netherlands' },
     normalTransitHours: 336,
     chokepoints: ['Bab el-Mandeb', 'Suez Canal'],
     commodity: 'consumer_goods',
@@ -484,7 +470,7 @@ export const interpolateRoutePosition = (route, currentTime = Date.now()) => {
     };
   }
 
-  const point = interpolatePoint(from, to, fraction);
+  const point = interpolateAlongGreatCircle(from.lat, from.lng, to.lat, to.lng, fraction);
   return {
     ...point,
     fraction,

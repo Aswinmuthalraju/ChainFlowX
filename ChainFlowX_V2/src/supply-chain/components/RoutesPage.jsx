@@ -3,16 +3,20 @@ import RouteDetailPanel from './RouteDetailPanel.jsx';
 import RouteRiskIndicator from './RouteRiskIndicator.jsx';
 import { calcAltRoute } from '../engine/altRouteCalc.js';
 
-export default function RoutesPage({ routes, selectedRoute: externallySelectedRoute, onRouteSelect, liveVessels = [] }) {
-  const [selectedRoute, setSelectedRoute] = useState(externallySelectedRoute ?? null);
-
-  useEffect(() => {
-    setSelectedRoute(externallySelectedRoute ?? null);
-  }, [externallySelectedRoute]);
+export default function RoutesPage({ routes, selectedRouteId = null, onRouteSelect, liveVessels = [] }) {
   const [filterRisk, setFilterRisk] = useState('all');
   const [sortBy, setSortBy] = useState('risk');
 
-  const resolvedSelectedRoute = externallySelectedRoute || selectedRoute;
+  const resolvedSelectedRoute = useMemo(() => {
+    if (!selectedRouteId) return null;
+    return routes.find((r) => r.id === selectedRouteId) ?? null;
+  }, [routes, selectedRouteId]);
+
+  useEffect(() => {
+    if (selectedRouteId && !routes.some((r) => r.id === selectedRouteId)) {
+      console.warn('Selected route missing:', selectedRouteId);
+    }
+  }, [routes, selectedRouteId]);
 
   const filteredRoutes = useMemo(() => {
     return routes.filter((route) => {
@@ -49,8 +53,7 @@ export default function RoutesPage({ routes, selectedRoute: externallySelectedRo
     return m;
   }, [liveVessels]);
 
-  const selectRoute = (route) => {
-    setSelectedRoute(route);
+  const handleRouteClick = (route) => {
     onRouteSelect?.(route);
   };
 
@@ -88,7 +91,7 @@ export default function RoutesPage({ routes, selectedRoute: externallySelectedRo
       <div className="routes-page__grid-wrap">
         <div className="routes-page__grid">
           {sortedRoutes.map((route) => {
-            const isSelected = resolvedSelectedRoute?.id === route.id;
+            const isSelected = selectedRouteId === route.id;
             const risk = route.currentRisk ?? route.baseRisk ?? 0;
             const liveShips = route.type === 'maritime' ? vesselCountByRouteId.get(route.id) || 0 : 0;
             const hasLiveTraffic = route.type === 'maritime' && (liveShips > 0 || route.currentPosition);
@@ -96,7 +99,7 @@ export default function RoutesPage({ routes, selectedRoute: externallySelectedRo
               <article
                 key={route.id}
                 className={`route-card ${isSelected ? 'is-selected' : ''}`}
-                onClick={() => selectRoute(route)}
+                onClick={() => handleRouteClick(route)}
               >
                 <header className="route-card__header">
                   <h3>{route.name}</h3>
@@ -137,10 +140,7 @@ export default function RoutesPage({ routes, selectedRoute: externallySelectedRo
                 { severity: (resolvedSelectedRoute.currentRisk || resolvedSelectedRoute.baseRisk || 0) / 100 },
                 (resolvedSelectedRoute.currentRisk || resolvedSelectedRoute.baseRisk || 0) / 12,
               )}
-              onClose={() => {
-                setSelectedRoute(null);
-                onRouteSelect?.(null);
-              }}
+              onClose={() => onRouteSelect?.(null)}
             />
           </aside>
         )}

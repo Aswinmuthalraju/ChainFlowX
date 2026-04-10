@@ -1,6 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 export default function IndustryCascadePanel({ industryCascade }) {
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('IndustryCascade received props:', { industryCascade });
+    }
+  }, [industryCascade]);
+
   if (!industryCascade?.length) {
     return (
       <div className="panel opacity-60 ic-panel-body">
@@ -14,8 +20,8 @@ export default function IndustryCascadePanel({ industryCascade }) {
             <div className="w-2 h-2 rounded-sm bg-cfx-border" />
           </div>
           <div className="text-[10px] font-mono text-gray-600 text-center mt-2">
-            Cascade depth insufficient<br/>
-            <span className="text-[9px] text-gray-700">Trigger a high-severity event to activate</span>
+            No downstream cascade detected<br/>
+            <span className="text-[9px] text-gray-700">Trigger a supply-chain event near a major chokepoint</span>
           </div>
         </div>
       </div>
