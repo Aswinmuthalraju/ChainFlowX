@@ -6,6 +6,7 @@ import { PORTS } from './supply-chain/data/ports.js';
 import { ROUTES } from './supply-chain/data/routes.js';
 import { CHOKEPOINTS } from './supply-chain/data/chokepoints.js';
 import { startLiveEventFeed, liveArticleToPipelineEvent } from './supply-chain/data/liveEventFeed.js';
+import { positionTracker } from './supply-chain/engine/positionTracker.js';
 import { RAIL_CORRIDORS } from './supply-chain/data/transportRail.js';
 import { PIPELINE_CORRIDORS } from './supply-chain/data/transportPipeline.js';
 import {
@@ -27,6 +28,8 @@ import StrategicRiskOverview from './supply-chain/components/StrategicRiskOvervi
 import LiveNewsTicker from './supply-chain/components/LiveNewsTicker.jsx';
 import HeaderBar from './supply-chain/components/HeaderBar.jsx';
 import TickerBar from './supply-chain/components/TickerBar.jsx';
+import RoutesPage from './supply-chain/components/RoutesPage.jsx';
+import IntelligenceFeed from './supply-chain/components/IntelligenceFeed.jsx';
 
 function findNearestRoute(routes, lat, lng) {
   if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -50,6 +53,7 @@ function findNearestRoute(routes, lat, lng) {
 export default function App() {
   const [graph, setGraph] = useState(null);
   const [routes, setRoutes] = useState(ROUTES);
+  const [activePage, setActivePage] = useState('dashboard');
   const [eventState, setEventState] = useState(null);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -91,6 +95,30 @@ export default function App() {
     transportRoutes.forEach((route) => map.set(route.id, route));
     return map;
   }, [transportRoutes]);
+
+  useEffect(() => {
+    positionTracker.setRoutes(ROUTES);
+    const unsubscribe = positionTracker.subscribe((trackedRoutes) => {
+      const trackedMap = new Map(trackedRoutes.map((route) => [route.id, route]));
+      setRoutes((prev) =>
+        prev.map((route) => {
+          const tracked = trackedMap.get(route.id);
+          if (!tracked) return route;
+          return {
+            ...route,
+            currentPosition: tracked.currentPosition,
+            status: tracked.status === 'arrived' ? tracked.status : route.status,
+          };
+        }),
+      );
+    });
+    positionTracker.start();
+
+    return () => {
+      unsubscribe();
+      positionTracker.stop();
+    };
+  }, []);
 
   useEffect(() => {
     isLoadingRef.current = isLoading;
@@ -347,7 +375,42 @@ export default function App() {
         </div>
       )}
 
+      <div className="cfx-top-nav">
+        {[
+          { id: 'dashboard', label: 'Dashboard' },
+          { id: 'routes', label: 'Routes' },
+          { id: 'intelligence', label: 'Intelligence' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={activePage === tab.id ? 'is-active' : ''}
+            onClick={() => setActivePage(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activePage === 'routes' && (
+        <RoutesPage
+          routes={routes}
+          selectedRoute={selectedRoute}
+          onRouteSelect={setSelectedRoute}
+        />
+      )}
+
+      {activePage === 'intelligence' && (
+        <IntelligenceFeed
+          onRouteSelect={(route) => {
+            setSelectedRoute(route);
+          }}
+          onOpenRoutes={() => setActivePage('routes')}
+        />
+      )}
+
       {/* V1 Main Dashboard Grid */}
+      {activePage === 'dashboard' && (
       <main className="dashboard-container" style={{ paddingBottom: '32px' }}>
         {/* Left Section (Globe + Metrics) */}
         <div className="left-section" style={{ flex: 1, minWidth: 0 }}>
@@ -518,6 +581,7 @@ export default function App() {
           </div>
         </div>
       </main>
+      )}
 
       <TickerBar articles={liveArticles} />
     </div>

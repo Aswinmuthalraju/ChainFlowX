@@ -47,5 +47,11 @@ export const PORTS = [
   { id: 'PORT-TPS', name: 'Tanjung Pelepas', country: 'Malaysia', lat: 1.36, lng: 103.54, type: 'maritime', teuCapacity: 8000, absorptionCapacity: 0.85, tier: 2 },
   { id: 'PORT-LCB', name: 'Laem Chabang', country: 'Thailand', lat: 13.08, lng: 100.88, type: 'maritime', teuCapacity: 6000, absorptionCapacity: 0.80, tier: 2 },
   { id: 'PORT-PEN', name: 'Penang', country: 'Malaysia', lat: 5.41, lng: 100.33, type: 'maritime', teuCapacity: 2000, absorptionCapacity: 0.75, tier: 3 },
-  { id: 'PORT-CTG', name: 'Chittagong', country: 'Bangladesh', lat: 22.35, lng: 91.81, type: 'maritime', teuCapacity: 2500, absorptionCapacity: 0.60, tier: 3 }
+  { id: 'PORT-CTG', name: 'Chittagong', country: 'Bangladesh', lat: 22.35, lng: 91.81, type: 'maritime', teuCapacity: 2500, absorptionCapacity: 0.60, tier: 3 },
+  { id: 'AIRPORT-SH', name: "Shanghai Pudong Int'l Airport", country: 'China', lat: 31.1437, lng: 121.805, type: 'air', teuCapacity: 0, absorptionCapacity: 0.95, tier: 1 },
+  { id: 'AIRPORT-FRA', name: 'Frankfurt Airport', country: 'Germany', lat: 50.0379, lng: 8.5622, type: 'air', teuCapacity: 0, absorptionCapacity: 0.9, tier: 1 },
+  { id: 'AIRPORT-HKG', name: "Hong Kong Int'l Airport", country: 'Hong Kong', lat: 22.308, lng: 113.9185, type: 'air', teuCapacity: 0, absorptionCapacity: 0.92, tier: 1 },
+  { id: 'AIRPORT-LAX', name: "Los Angeles Int'l Airport", country: 'USA', lat: 33.9425, lng: -118.4081, type: 'air', teuCapacity: 0, absorptionCapacity: 0.9, tier: 1 },
+  { id: 'AIRPORT-SIN', name: 'Singapore Changi Airport', country: 'Singapore', lat: 1.3521, lng: 103.8198, type: 'air', teuCapacity: 0, absorptionCapacity: 0.96, tier: 1 },
+  { id: 'AIRPORT-LHR', name: 'London Heathrow', country: 'UK', lat: 51.47, lng: -0.4543, type: 'air', teuCapacity: 0, absorptionCapacity: 0.91, tier: 1 }
 ];

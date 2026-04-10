@@ -17,7 +17,22 @@ export const ROUTE_ALTERNATIVES = {
   'LA-ROT-001': { alt: 'via Suez westbound', days: 19, costPerContainer: 1500 },
   'CPT-ROT-001': { alt: 'Air Freight', days: -14, costPerContainer: 6000 },
   'HOU-ROT-001': { alt: 'via Transatlantic', days: 5, costPerContainer: 500 },
-  'SHA-CPT-001': { alt: 'via Outer Sea', days: 4, costPerContainer: 400 }
+    'SHA-CPT-001': { alt: 'via Outer Sea', days: 4, costPerContainer: 400 },
+    'DUB-LB-001': { alt: 'via Cape of Good Hope', days: 11, costPerContainer: 1450 },
+    'HKG-HAM-001': { alt: 'via Cape of Good Hope', days: 13, costPerContainer: 1250 },
+    'TOK-NYC-001': { alt: 'via US west coast rail bridge', days: 5, costPerContainer: 950 },
+    'SIN-LA-001': { alt: 'via Busan transload', days: 3, costPerContainer: 430 },
+    'SH-SIN-001': { alt: 'via South China Sea feeder loop', days: 2, costPerContainer: 190 },
+    'BUS-SH-001': { alt: 'via Qingdao coastal relay', days: 1, costPerContainer: 120 },
+    'HOR-ROT-OIL': { alt: 'via Cape of Good Hope', days: 14, costPerContainer: 2100 },
+    'HOR-SIN-LNG': { alt: 'via Fujairah blend routing', days: 2, costPerContainer: 320 },
+    'PAN-NYC-001': { alt: 'via US Gulf relay', days: 4, costPerContainer: 520 },
+    'LB-SH-EMPTY': { alt: 'via Vancouver return pool', days: 3, costPerContainer: 260 },
+    'BAB-ROT-001': { alt: 'via Cape of Good Hope', days: 12, costPerContainer: 1600 },
+    'CAPE-ALT-001': { alt: 'via Atlantic consolidation hubs', days: 6, costPerContainer: 800 },
+    'SH-FRA-AIR': { alt: 'via Doha freight hub', days: 0, costPerContainer: 2800 },
+    'HKG-LAX-AIR': { alt: 'via Anchorage technical stop', days: 0, costPerContainer: 2400 },
+    'SIN-LHR-AIR': { alt: 'via Dubai air bridge', days: 0, costPerContainer: 2300 }
 };
 
 export function calcAltRoute(routeId, classifiedEvent, rippleScoreResult) {

@@ -119,11 +119,13 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
       ))}
 
       {routes &&
-        routes.map((route) => (
+        routes.map((route) => {
+          const routeEnd = route.currentPosition || route.to;
+          return (
           <g key={route.id} style={{ cursor: 'pointer' }} onClick={() => onRouteSelect && onRouteSelect(route)}>
             {(route.status === 'critical' || route.status === 'severe') && (
               <path
-                d={arcPath(route.from, route.to)}
+                d={arcPath(route.from, routeEnd)}
                 fill="none"
                 stroke={arcColor(route.status)}
                 strokeWidth={arcStroke(route.status) + 3}
@@ -131,15 +133,26 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
               />
             )}
             <path
-              d={arcPath(route.from, route.to)}
+              d={arcPath(route.from, routeEnd)}
               fill="none"
               stroke={arcColor(route.status)}
               strokeWidth={arcStroke(route.status)}
               strokeOpacity={arcOpacity(route.status)}
               strokeLinecap="round"
             />
+
+            {route.currentPosition && (
+              <circle
+                cx={toX(route.currentPosition.lng)}
+                cy={toY(route.currentPosition.lat)}
+                r={route.type === 'air' ? 2.2 : 2.8}
+                fill={route.type === 'air' ? '#ff9500' : '#00ffff'}
+                opacity={0.9}
+              />
+            )}
           </g>
-        ))}
+          );
+        })}
 
       {routes &&
         routes
@@ -342,8 +355,8 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
       .arcsData(allRoutes)
       .arcStartLat((d) => d.from.lat)
       .arcStartLng((d) => d.from.lng)
-      .arcEndLat((d) => d.to.lat)
-      .arcEndLng((d) => d.to.lng)
+      .arcEndLat((d) => (d.type === 'air' ? d.to.lat : d.currentPosition?.lat ?? d.to.lat))
+      .arcEndLng((d) => (d.type === 'air' ? d.to.lng : d.currentPosition?.lng ?? d.to.lng))
       .arcColor((d) => {
         if (d.type === 'air') return ['rgba(255,149,0,0.05)', 'rgba(255,149,0,0.95)', 'rgba(255,149,0,0.05)'];
         if (d.status === 'critical') return ['rgba(255,59,59,0.08)', 'rgba(255,59,59,0.9)', 'rgba(255,59,59,0.08)'];
@@ -485,6 +498,16 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
       lng: v.lng,
     }));
 
+    const routeVesselEls = (displayRoutes || [])
+      .filter((route) => route.currentPosition && route.type === 'maritime')
+      .map((route) => ({
+        type: 'route_vessel',
+        keyId: `rv-${route.id}`,
+        lat: route.currentPosition.lat,
+        lng: route.currentPosition.lng,
+        route,
+      }));
+
     const airEls = (liveAircraft || []).map((a) => ({
       ...a,
       type: 'aircraft',
@@ -512,7 +535,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
       commodity: r.commodity,
     }));
 
-    const allHtmlPoints = [...chokeEls, ...vesselEls, ...airEls, ...pipeEls, ...railEls];
+    const allHtmlPoints = [...chokeEls, ...vesselEls, ...routeVesselEls, ...airEls, ...pipeEls, ...railEls];
 
     globe
       .htmlElementsData(allHtmlPoints)
@@ -587,6 +610,21 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
           return el;
         }
 
+        if (d.type === 'route_vessel') {
+          el.innerHTML = '●';
+          el.style.cssText = `
+            font-size: 9px; line-height: 1; cursor: pointer;
+            pointer-events: auto; user-select: none;
+            color: #00ffff; text-shadow: 0 0 6px #00ffff;
+          `;
+          el.title = `${d.route.name} | ${Math.round((d.route.currentPosition?.fraction || 0) * 100)}% complete`;
+          el.onclick = (ev) => {
+            ev.stopPropagation();
+            onRouteSelect && onRouteSelect(d.route);
+          };
+          return el;
+        }
+
         if (d.type === 'pipeline_mid') {
           el.innerHTML = '🛢️';
           el.style.cssText = `
@@ -609,7 +647,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
 
         return el;
       });
-  }, [chokepoints, eventState, liveVessels, liveAircraft, mapMode, globeReady, visiblePipelines, visibleRail]);
+  }, [chokepoints, eventState, liveVessels, liveAircraft, mapMode, globeReady, visiblePipelines, visibleRail, displayRoutes, onRouteSelect]);
 
   useEffect(() => {
     if (!globeRef.current) return;
