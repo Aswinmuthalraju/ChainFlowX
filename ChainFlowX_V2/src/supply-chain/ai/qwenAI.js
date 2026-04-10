@@ -1,4 +1,5 @@
 import { safeParseAIJSON } from './aiUtils.js';
+import { llmMemory } from './llmMemory.js';
 
 function normalizeUrl(base) {
   const t = String(base ?? '').trim().replace(/\/+$/, '');
@@ -44,6 +45,8 @@ export async function synthesizeStrategicInsight(eventState) {
   const qwenUrl = import.meta.env.VITE_QWEN_URL;
   if (!qwenUrl) {
     console.warn('[ChainFlowX Qwen] VITE_QWEN_URL not set — using template fallback. Set it in .env to enable AI synthesis.');
+    llmMemory.push('user', `strategic (fallback): ${eventState?.classified?.eventType || 'unknown'} ripple:${eventState?.rippleScore?.score ?? 0}`, 'qwen');
+    llmMemory.push('assistant', 'template fallback returned because VITE_QWEN_URL is missing', 'qwen');
     return templateSynthesisFallback(eventState);
   }
 
@@ -52,6 +55,7 @@ export async function synthesizeStrategicInsight(eventState) {
 
   const { classified, rippleScore, dnaMatch, altRoutes, industryCascade, cascadeAlerts, affectedRoutes } = eventState || {};
   const allAlts = Object.values(altRoutes || {});
+  const memoryContext = llmMemory.getContext(4);
 
   const promptText = `You are a supply chain strategic intelligence analyst. Your job is to deliver ACTIONABLE decisions — not summaries.
 The operator is looking at a live disruption RIGHT NOW. They need to know: what to do, which routes to switch to, how much it costs, and what happens if they wait.
@@ -120,14 +124,25 @@ Based on this data, provide the strategic decision briefing. Be specific. Use th
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: promptText }],
+        messages: [...memoryContext, { role: 'user', content: promptText }],
         temperature: 0.3,
         max_tokens: 900,
         options: { think: true },
       }),
     });
 
-    if (!response.ok) throw new Error(`HTTP ${response.status} from Qwen endpoint`);
+    if (response.status === 204) {
+      console.debug('[ChainFlowX] Qwen 204 No Content — using template fallback');
+      llmMemory.push('user', `strategic (fallback): ${classified?.eventType || 'unknown'} ripple:${rippleScore?.score ?? 0}`, 'qwen');
+      llmMemory.push('assistant', 'template fallback returned after HTTP 204', 'qwen');
+      return templateSynthesisFallback(eventState);
+    }
+    if (!response.ok) {
+      console.warn(`[ChainFlowX] Qwen HTTP ${response.status} — using template fallback`);
+      llmMemory.push('user', `strategic (fallback): ${classified?.eventType || 'unknown'} ripple:${rippleScore?.score ?? 0}`, 'qwen');
+      llmMemory.push('assistant', `template fallback returned after HTTP ${response.status}`, 'qwen');
+      return templateSynthesisFallback(eventState);
+    }
 
     const data = await response.json();
     const rawText = (data.choices?.[0]?.message?.content || '')
@@ -138,15 +153,21 @@ Based on this data, provide the strategic decision briefing. Be specific. Use th
 
     if (!result) {
       console.warn('[ChainFlowX Qwen] JSON parse failed — using template fallback');
+      llmMemory.push('user', `strategic (fallback): ${classified?.eventType || 'unknown'} ripple:${rippleScore?.score ?? 0}`, 'qwen');
+      llmMemory.push('assistant', 'template fallback returned after parse failure', 'qwen');
       return templateSynthesisFallback(eventState);
     }
 
     result._source = 'qwen_llm';
     console.log(`[ChainFlowX Qwen] ✅ Strategic insight generated (urgency: ${result.urgency})`);
+    llmMemory.push('user', `strategic: ${classified?.eventType || 'unknown'} ripple:${rippleScore?.score ?? 0}`, 'qwen');
+    llmMemory.push('assistant', result?.strategicAnalysis?.slice(0, 200) || 'synthesis complete', 'qwen');
     return result;
 
   } catch (e) {
     console.warn('[ChainFlowX Qwen] ❌ LLM call failed:', e.message, '— using template fallback. Check ngrok tunnel B.');
+    llmMemory.push('user', `strategic (fallback): ${classified?.eventType || 'unknown'} ripple:${rippleScore?.score ?? 0}`, 'qwen');
+    llmMemory.push('assistant', 'template fallback returned after exception', 'qwen');
     return templateSynthesisFallback(eventState);
   }
 }

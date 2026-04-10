@@ -29,14 +29,6 @@ const DEMO_AIR_CARGO_ROUTES = [
   },
   {
     id: 'AIR-AMS-ORD-001',
-    type: 'air',
-    commodity: 'pharma/cold-chain',
-    from: { name: 'Amsterdam', lat: 52.31, lng: 4.77 },
-    to: { name: 'Chicago', lat: 41.98, lng: -87.9 },
-  },
-  {
-    id: 'AIR-DEL-SYD-001',
-    type: 'air',
     commodity: 'express mixed cargo',
     from: { name: 'Delhi', lat: 28.56, lng: 77.1 },
     to: { name: 'Sydney', lat: -33.94, lng: 151.18 },
@@ -46,19 +38,17 @@ const DEMO_AIR_CARGO_ROUTES = [
 const lerp = (a, b, t) => a + (b - a) * t;
 
 const CHOKEPOINT_WAYPOINTS = {
-  'CHKPT-MALACCA': [{ lat: 1.26, lng: 103.84 }],
-  'CHKPT-SUEZ': [
-    { lat: 12.7, lng: 43.3 },
-    { lat: 30.2, lng: 32.3 },
-  ],
-  'CHKPT-BAB': [{ lat: 12.7, lng: 43.3 }],
-  'CHKPT-HORMUZ': [{ lat: 26.55, lng: 56.25 }],
-  'CHKPT-PANAMA': [{ lat: 9.0, lng: -79.58 }],
-  'CHKPT-CAPE': [{ lat: -34.35, lng: 18.5 }],
+  'CHKPT-MALACCA': [{ lat: 1.2, lng: 103.8 }],
+  'CHKPT-SUEZ': [{ lat: 30.0, lng: 32.5 }],
+  'CHKPT-HORMUZ': [{ lat: 26.5, lng: 56.5 }],
+  'CHKPT-PANAMA': [{ lat: 9.1, lng: -79.7 }],
+  'CHKPT-BAB': [{ lat: 12.5, lng: 43.3 }],
+  'CHKPT-CAPE': [{ lat: -34.4, lng: 18.5 }],
 };
 
 const MARITIME_ROUTE_WAYPOINTS = {
   'ROT-SIN-001': [
+
     { lat: 36.0, lng: -5.3 },
     { lat: 30.2, lng: 32.3 },
     { lat: 12.7, lng: 43.3 },
@@ -73,8 +63,8 @@ const MARITIME_ROUTE_WAYPOINTS = {
     { lat: 30.2, lng: 32.3 },
     { lat: 36.0, lng: -5.3 },
   ],
-  'BUS-ROT-001': [
-    { lat: 32.0, lng: 127.0 },
+  'HKG-HAM-001': [
+    { lat: 22.0, lng: 113.8 },
     { lat: 1.26, lng: 103.84 },
     { lat: 6.0, lng: 72.0 },
     { lat: 12.7, lng: 43.3 },
@@ -93,6 +83,58 @@ const MARITIME_ROUTE_WAYPOINTS = {
     { lat: 12.7, lng: 43.3 },
     { lat: 30.2, lng: 32.3 },
     { lat: 36.0, lng: -5.3 },
+  ],
+  'SH-SIN-001': [
+    { lat: 25.0, lng: 118.0 },
+    { lat: 18.0, lng: 114.0 },
+    { lat: 10.0, lng: 109.0 },
+    { lat: 1.26, lng: 103.84 },
+  ],
+  'BUS-SH-001': [
+    { lat: 34.8, lng: 126.0 },
+    { lat: 33.4, lng: 124.0 },
+    { lat: 32.0, lng: 122.0 },
+  ],
+  'DUB-LB-001': [
+    { lat: 30.2, lng: 32.3 },
+    { lat: 12.7, lng: 43.3 },
+    { lat: 6.0, lng: 72.0 },
+    { lat: 9.0, lng: -79.58 },
+    { lat: 20.0, lng: -105.0 },
+    { lat: 33.75, lng: -118.2168 },
+  ],
+  'HOR-ROT-OIL': [
+    { lat: 15.0, lng: 64.0 },
+    { lat: 12.7, lng: 43.3 },
+    { lat: 30.2, lng: 32.3 },
+    { lat: 36.0, lng: -5.3 },
+  ],
+  'HOR-SIN-LNG': [
+    { lat: 18.0, lng: 64.0 },
+    { lat: 6.0, lng: 72.0 },
+    { lat: 1.26, lng: 103.84 },
+  ],
+  'PAN-NYC-001': [
+    { lat: 18.0, lng: -75.0 },
+    { lat: 25.0, lng: -72.0 },
+    { lat: 32.0, lng: -74.0 },
+  ],
+  'LB-SH-EMPTY': [
+    { lat: 30.0, lng: -130.0 },
+    { lat: 32.0, lng: -150.0 },
+    { lat: 33.0, lng: 170.0 },
+    { lat: 30.0, lng: 150.0 },
+  ],
+  'BAB-ROT-001': [
+    { lat: 18.0, lng: 43.0 },
+    { lat: 30.2, lng: 32.3 },
+    { lat: 36.0, lng: -5.3 },
+  ],
+  'CAPE-ALT-001': [
+    { lat: -5.0, lng: 48.0 },
+    { lat: -18.0, lng: 42.0 },
+    { lat: -30.0, lng: 28.0 },
+    { lat: -34.35, lng: 18.5 },
   ],
   'LA-ROT-001': [
     { lat: 22.0, lng: -118.0 },

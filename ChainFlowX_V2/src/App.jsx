@@ -22,7 +22,6 @@ import RippleScorePanel from './supply-chain/components/RippleScorePanel.jsx';
 import DNAMatchPanel from './supply-chain/components/DNAMatchPanel.jsx';
 import IndustryCascadePanel from './supply-chain/components/IndustryCascadePanel.jsx';
 import RouteDetailPanel from './supply-chain/components/RouteDetailPanel.jsx';
-import StrategicInsightPanel from './supply-chain/components/StrategicInsightPanel.jsx';
 import SupplyChainMonitor from './supply-chain/components/SupplyChainMonitor.jsx';
 import StrategicRiskOverview from './supply-chain/components/StrategicRiskOverview.jsx';
 import LiveNewsTicker from './supply-chain/components/LiveNewsTicker.jsx';
@@ -30,6 +29,7 @@ import HeaderBar from './supply-chain/components/HeaderBar.jsx';
 import TickerBar from './supply-chain/components/TickerBar.jsx';
 import RoutesPage from './supply-chain/components/RoutesPage.jsx';
 import IntelligenceFeed from './supply-chain/components/IntelligenceFeed.jsx';
+import EventTrigger from './supply-chain/components/EventTrigger.jsx';
 
 function findNearestRoute(routes, lat, lng) {
   if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -638,23 +638,13 @@ export default function App() {
 
         {/* Right Sidebar (Live Ticker + AI Integration) */}
         <div className="right-sidebar" style={{ width: `${sidebarWidth}%`, flex: 'none' }}>
-          <div className="ai-panel">
-            <button
-              type="button"
-              className="trigger-btn"
-              onClick={() => handleEventTrigger(null)}
-              disabled={isLoading}
-              style={{ width: '100%', marginBottom: 10 }}
-            >
-              <span className="scene-num">RESET</span>
-              <span className="scene-label-text">Clear active event</span>
-            </button>
-            <StrategicInsightPanel
-              eventState={eventState}
-              onGenerateInsight={handleGenerateInsight}
-              insightLoading={insightLoading}
-            />
-          </div>
+          <EventTrigger
+            eventState={eventState}
+            onGenerateInsight={handleGenerateInsight}
+            insightLoading={insightLoading}
+            onReset={() => handleEventTrigger(null)}
+            isLoading={isLoading}
+          />
 
           <div className="live-feed-panel">
             <div className="scene-section-label">Live Threat Intelligence</div>

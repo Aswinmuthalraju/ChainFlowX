@@ -25,7 +25,9 @@
       "Bash(curl -s -o /dev/null -w \"Qwen URL status: %{http_code}\\\\n\" --max-time 10 \"https://polygenistic-sharon-stylographic.ngrok-free.dev/v1/models\")",
       "Bash(curl -sk --max-time 10 \"https://ruth-unfogged-joan.ngrok-free.dev/v1/models\")",
       "Bash(curl -sk --max-time 10 \"https://polygenistic-sharon-stylographic.ngrok-free.dev/v1/models\")",
-      "Bash(ls ChainFlowX_V2/.env*)"
+      "Bash(ls ChainFlowX_V2/.env*)",
+      "Bash(wc -l /c/Users/Aswin/Documents/Code/Dev/ChainFlowX/ChainFlowX_V1/src/supply-chain/components/*.jsx)",
+      "Bash(wc -l /c/Users/Aswin/Documents/Code/Dev/ChainFlowX/ChainFlowX_V2/src/supply-chain/components/*.jsx)"
     ]
   }
 }

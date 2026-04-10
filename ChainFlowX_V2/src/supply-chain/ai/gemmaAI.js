@@ -1,4 +1,5 @@
 import { safeParseAIJSON } from './aiUtils.js';
+import { llmMemory } from './llmMemory.js';
 
 const CLASSIFY_CACHE = new Map();
 const CLASSIFY_CACHE_MAX = 200;
@@ -48,11 +49,14 @@ export async function classifyEvent(headline, description) {
   const gemmaUrl = import.meta.env.VITE_GEMMA_URL;
   if (!gemmaUrl) {
     console.warn('[ChainFlowX Gemma] VITE_GEMMA_URL not set — using keyword fallback. Set it in .env to enable AI classification.');
+    llmMemory.push('user', `classify (fallback): ${headline}`, 'gemma');
+    llmMemory.push('assistant', 'keyword fallback returned because VITE_GEMMA_URL is missing', 'gemma');
     return keywordClassifierFallback(headline, description);
   }
 
   const apiUrl = `${normalizeUrl(gemmaUrl)}/chat/completions`;
   const model = import.meta.env.VITE_GEMMA_MODEL || 'gemma4:e4b';
+  const sessionCtx = llmMemory.getSummary();
 
   const promptText = `You are a supply chain intelligence classification engine.
 Given the following event, extract structured fields.
@@ -78,13 +82,24 @@ Description: ${description}`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: promptText }],
+        messages: [{ role: 'user', content: `${promptText}${sessionCtx}` }],
         temperature: 0.1,
         max_tokens: 400,
       }),
     });
 
-    if (!response.ok) throw new Error(`HTTP ${response.status} from Gemma endpoint`);
+    if (response.status === 204) {
+      console.debug('[ChainFlowX] Gemma 204 No Content — using keyword fallback');
+      llmMemory.push('user', `classify (fallback): ${headline}`, 'gemma');
+      llmMemory.push('assistant', 'keyword fallback returned after HTTP 204', 'gemma');
+      return keywordClassifierFallback(headline, description);
+    }
+    if (!response.ok) {
+      console.warn(`[ChainFlowX] Gemma HTTP ${response.status} — using keyword fallback`);
+      llmMemory.push('user', `classify (fallback): ${headline}`, 'gemma');
+      llmMemory.push('assistant', `keyword fallback returned after HTTP ${response.status}`, 'gemma');
+      return keywordClassifierFallback(headline, description);
+    }
 
     const data = await response.json();
     const rawText = data.choices?.[0]?.message?.content || '';
@@ -92,11 +107,15 @@ Description: ${description}`;
 
     if (!parsed) {
       console.warn('[ChainFlowX Gemma] JSON parse failed — using keyword fallback');
+      llmMemory.push('user', `classify (fallback): ${headline}`, 'gemma');
+      llmMemory.push('assistant', 'keyword fallback returned after parse failure', 'gemma');
       return keywordClassifierFallback(headline, description);
     }
 
     parsed._source = 'gemma_llm';
     console.log(`[ChainFlowX Gemma] ✅ classified as "${parsed.eventType}" (confidence ${parsed.confidence})`);
+    llmMemory.push('user', `classify: ${headline}`, 'gemma');
+    llmMemory.push('assistant', `type:${parsed.eventType} sev:${parsed.severity}`, 'gemma');
 
     if (CLASSIFY_CACHE.size >= CLASSIFY_CACHE_MAX) {
       CLASSIFY_CACHE.delete(CLASSIFY_CACHE.keys().next().value);
@@ -106,6 +125,8 @@ Description: ${description}`;
 
   } catch (e) {
     console.warn('[ChainFlowX Gemma] ❌ LLM call failed:', e.message, '— using keyword fallback. Check ngrok tunnel A.');
+    llmMemory.push('user', `classify (fallback): ${headline}`, 'gemma');
+    llmMemory.push('assistant', 'keyword fallback returned after exception', 'gemma');
     return keywordClassifierFallback(headline, description);
   }
 }

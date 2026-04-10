@@ -368,7 +368,7 @@ export const ROUTES = [
     name: 'Cape of Good Hope (Suez Bypass)',
     type: 'maritime',
     from: { name: 'Bab el-Mandeb', lat: 12.5848, lng: 43.3212, portId: 'CHKPT-BAB', country: 'Yemen/Djibouti' },
-    to: { name: 'Cape of Good Hope', lat: -34.3568, lng: 18.4689, portId: 'CHKPT-CAPE', country: 'South Africa' },
+    to: { name: 'Port of Rotterdam', lat: 51.9244, lng: 4.4777, portId: 'PORT-ROT', country: 'Netherlands' },
     normalTransitHours: 480,
     chokepoints: ['Cape of Good Hope'],
     commodity: 'all',
@@ -383,7 +383,7 @@ export const ROUTES = [
     imo: '9741034',
     mmsi: '538009332',
     alternatives: [],
-    graphEdges: [],
+    graphEdges: ['CHKPT-CAPE'],
   },
   {
     id: 'SH-FRA-AIR',
