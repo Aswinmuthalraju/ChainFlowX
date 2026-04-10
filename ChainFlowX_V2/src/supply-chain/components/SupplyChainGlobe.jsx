@@ -2,9 +2,34 @@ import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle, us
 import Globe from 'globe.gl';
 import { VESSEL_COLORS } from '../data/transportMaritime.js';
 import { DEFAULT_18_ROUTES } from '../data/default18Routes.js';
+import {
+  buildGlobePathCoords3d,
+  generateGreatCircleArc,
+  normalizeLng180,
+} from '../geo/greatCircleArc.js';
+
+function coordsValid(lat, lng) {
+  return (
+    typeof lat === 'number' &&
+    typeof lng === 'number' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
 
 // ── 2D flat map (SVG equirectangular radar display) ──────────────────────────
-function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect, selectedRoute }) {
+function FlatMap2D({
+  routes,
+  chokepoints,
+  eventState,
+  onRouteSelect,
+  selectedRoute,
+  selectedRouteId = null,
+}) {
   const W = 1000,
     H = 500;
 
@@ -23,8 +48,27 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect, selectedRou
 
   const arcStroke = (status) => (status === 'critical' ? 2.5 : status === 'warning' ? 1.8 : 1.2);
 
-  // Handles anti-meridian crossing: splits arc into two segments when the
-  // shortest-path longitude delta wraps past ±180°.
+  // Great-circle samples with longitude unwrapping so Pacific / dateline crossings
+  // do not collapse into a misleading straight chord on equirectangular SVG.
+  const gcSvgPath = (from, to) => {
+    const pts = generateGreatCircleArc(from.lat, from.lng, to.lat, to.lng, 64, 128);
+    if (!pts.length) return '';
+    let lngRun = normalizeLng180(pts[0].lng);
+    let d = `M ${((lngRun + 180) / 360) * W} ${toY(pts[0].lat)}`;
+    for (let i = 1; i < pts.length; i++) {
+      const prevN = normalizeLng180(pts[i - 1].lng);
+      const currN = normalizeLng180(pts[i].lng);
+      let delta = currN - prevN;
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+      lngRun += delta;
+      const x = ((lngRun + 180) / 360) * W;
+      const y = toY(pts[i].lat);
+      d += ` L ${x} ${y}`;
+    }
+    return d.trim();
+  };
+
   const arcPath = (from, to) => {
     const x1 = toX(from.lng);
     const y1 = toY(from.lat);
@@ -124,37 +168,40 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect, selectedRou
 
       {routes &&
         routes.map((route) => {
-          const routeEnd = route.currentPosition || route.to;
-          const isSelected = selectedRoute?.id === route.id;
+          // Full corridor from port to port; vessel dot uses currentPosition separately.
+          const routeEnd = route.to;
+          const selId = selectedRouteId ?? selectedRoute?.id ?? null;
+          const isSelected = selId === route.id;
+          const dimOthers = selId != null && !isSelected;
+          const dim = dimOthers ? 0.26 : 1;
           return (
           <g key={route.id} style={{ cursor: 'pointer' }} onClick={() => onRouteSelect && onRouteSelect(route)}>
             {isSelected && (
               <path
-                d={arcPath(route.from, routeEnd)}
+                d={gcSvgPath(route.from, routeEnd)}
                 fill="none"
-                stroke="rgba(0,255,255,0.85)"
-                strokeWidth={arcStroke(route.status) + 5}
-                strokeOpacity={0.35}
-                style={{ animation: 'routePulse2d 1.4s ease-in-out infinite' }}
+                stroke="rgba(0,255,255,0.55)"
+                strokeWidth={arcStroke(route.status) * 2 + 5}
+                strokeOpacity={1}
               />
             )}
             {(route.status === 'critical' || route.status === 'severe') && (
               <path
-                d={arcPath(route.from, routeEnd)}
+                d={gcSvgPath(route.from, routeEnd)}
                 fill="none"
                 stroke={arcColor(route.status)}
                 strokeWidth={arcStroke(route.status) + 3}
-                strokeOpacity={0.12}
+                strokeOpacity={0.12 * dim}
               />
             )}
             <path
-              d={arcPath(route.from, routeEnd)}
+              d={gcSvgPath(route.from, routeEnd)}
               fill="none"
               stroke={isSelected ? '#00ffff' : arcColor(route.status)}
-              strokeWidth={isSelected ? arcStroke(route.status) + 1.4 : arcStroke(route.status)}
-              strokeOpacity={isSelected ? 1 : arcOpacity(route.status)}
+              strokeWidth={isSelected ? arcStroke(route.status) * 2 : arcStroke(route.status)}
+              strokeOpacity={isSelected ? 1 : arcOpacity(route.status) * dim}
               strokeLinecap="round"
-              style={isSelected ? { filter: 'drop-shadow(0 0 4px rgba(0,255,255,0.9))' } : undefined}
+              style={isSelected ? { filter: 'drop-shadow(0 0 8px rgba(0,255,255,0.75))' } : undefined}
             />
 
             {route.currentPosition && (
@@ -236,6 +283,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
     chokepoints,
     eventState,
     onRouteSelect,
+    selectedRouteId: selectedRouteIdProp = null,
     selectedRoute = null,
     mapMode,
     eventRings = [],
@@ -274,7 +322,21 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
     return [...dr, ...airOnly];
   }, [displayRoutes, airRoutes]);
 
-  const selectedRouteId = selectedRoute?.id ?? null;
+  const selId = selectedRouteIdProp ?? selectedRoute?.id ?? null;
+
+  const arcsDataOrdered = useMemo(() => {
+    const base = arcRoutesForGlobe;
+    if (!selId) return base;
+    const selected = base.filter((r) => r.id === selId);
+    const rest = base.filter((r) => r.id !== selId);
+    return [...rest, ...selected];
+  }, [arcRoutesForGlobe, selId]);
+
+  useEffect(() => {
+    if (!selId) return;
+    const found = arcRoutesForGlobe.some((r) => r.id === selId);
+    if (!found) console.warn('Selected route failed render:', selId);
+  }, [selId, arcRoutesForGlobe]);
 
   useEffect(() => {
     console.log('[ChainFlowX] Display routes:', displayRoutes.length, 'Chokepoints:', chokepoints?.length ?? 0);
@@ -359,106 +421,137 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
   }, []);
 
   useEffect(() => {
-    const allRoutes = arcRoutesForGlobe;
-    if (!globeRef.current || !allRoutes.length) return;
+    if (!globeRef.current) return;
     const globe = globeRef.current;
 
-    globe
-      .arcsData(allRoutes)
-      .arcStartLat((d) => d.from.lat)
-      .arcStartLng((d) => d.from.lng)
-      .arcEndLat((d) => (d.type === 'air' ? d.to.lat : d.currentPosition?.lat ?? d.to.lat))
-      .arcEndLng((d) => (d.type === 'air' ? d.to.lng : d.currentPosition?.lng ?? d.to.lng))
-      .arcColor((d) => {
-        const selected = selectedRouteId != null && d.id === selectedRouteId;
-        if (selected) return ['rgba(0,212,255,0.22)', 'rgba(0,255,255,0.95)', 'rgba(0,212,255,0.22)'];
-        if (d.type === 'air') return ['rgba(255,149,0,0.05)', 'rgba(255,149,0,0.95)', 'rgba(255,149,0,0.05)'];
-        if (d.status === 'critical') return ['rgba(255,59,59,0.08)', 'rgba(255,59,59,0.9)', 'rgba(255,59,59,0.08)'];
-        if (d.status === 'severe') return ['rgba(255,107,53,0.08)', 'rgba(255,107,53,0.85)', 'rgba(255,107,53,0.08)'];
-        if (d.status === 'warning') return ['rgba(255,184,0,0.06)', 'rgba(255,184,0,0.8)', 'rgba(255,184,0,0.06)'];
-        return ['rgba(68,204,136,0.04)', 'rgba(68,204,136,0.6)', 'rgba(68,204,136,0.04)'];
-      })
-      .arcAltitudeAutoScale((d) => (d.type === 'air' ? 0.22 : 0.3))
-      .arcStroke((d) => {
-        const selected = selectedRouteId != null && d.id === selectedRouteId;
-        if (selected) return d.type === 'air' ? 0.85 : 1.05;
-        return d.type === 'air' ? 0.45 : d.status === 'critical' ? 0.9 : d.status === 'warning' ? 0.6 : 0.4;
-      })
-      .arcDashLength((d) => (d.type === 'air' ? 0.65 : 0.9))
-      .arcDashGap((d) => (d.type === 'air' ? 6 : 4))
-      .arcDashAnimateTime((d) => {
-        const selected = selectedRouteId != null && d.id === selectedRouteId;
-        if (selected) return d.type === 'air' ? 2200 : 1100;
-        return d.type === 'air' ? 7000 : d.status === 'critical' ? 1800 : d.status === 'warning' ? 3500 : 5000;
-      })
-      .onArcClick((arc) => onRouteSelect && onRouteSelect(arc))
-      .arcLabel(
-        (d) => `
+    const dimOthers = selId != null ? 0.22 : 1;
+
+    try {
+      globe.arcsData([]);
+
+      const allStaticPaths = [
+        ...(visiblePipelines || []).map((p) => ({
+          ...p,
+          layerType: 'pipeline',
+          coords: corridorToCoords(p),
+        })),
+        ...(visibleRail || []).map((r) => ({
+          ...r,
+          layerType: 'rail',
+          coords: corridorToCoords(r),
+        })),
+      ];
+
+      const tradePaths = (arcsDataOrdered || []).map((route) => {
+        const lat1 = route.from.lat;
+        const lng1 = route.from.lng;
+        const lat2 = route.to.lat;
+        const lng2 = route.to.lng;
+        const ok =
+          coordsValid(lat1, lng1) &&
+          coordsValid(lat2, lng2);
+        if (!ok) console.warn('Invalid route coordinates:', route.id);
+        else if (import.meta.env.DEV) {
+          console.log('Route start:', route.from.name, lat1, lng1);
+          console.log('Route end:', route.to.name, lat2, lng2);
+        }
+
+        let coords = buildGlobePathCoords3d(lat1, lng1, lat2, lng2, 64, 128);
+        if (route.type === 'air') {
+          coords = coords.map(([lat, lng, alt]) => [
+            lat,
+            lng,
+            Math.min(0.22, Math.max(0.03, (alt || 0.015) * 2)),
+          ]);
+        }
+
+        return {
+          ...route,
+          layerType: 'trade',
+          coords,
+        };
+      });
+
+      const allPaths = [...allStaticPaths, ...tradePaths];
+
+      globe
+        .pathsData(allPaths)
+        .pathPoints((d) => d.coords)
+        .pathPointLat((pt) => pt[0])
+        .pathPointLng((pt) => pt[1])
+        .pathPointAlt((pt) => (Array.isArray(pt) && pt.length > 2 ? pt[2] : 0.004))
+        .pathColor((d) => {
+          if (d.layerType === 'pipeline') {
+            return d.status === 'blocked'
+              ? 'rgba(255,0,0,0.8)'
+              : d.status === 'warning'
+                ? 'rgba(255,100,0,0.6)'
+                : 'rgba(255,68,0,0.35)';
+          }
+          if (d.layerType === 'rail') {
+            return d.status === 'warning' ? 'rgba(255,180,0,0.7)' : 'rgba(255,153,0,0.4)';
+          }
+          if (d.layerType === 'trade') {
+            const selected = selId != null && d.id === selId;
+            const dim = selected ? 1 : dimOthers;
+            if (selected) return `rgba(0,255,255,${0.92 * dim})`;
+            if (d.type === 'air') return `rgba(255,149,0,${0.72 * dim})`;
+            if (d.status === 'critical') return `rgba(255,59,59,${0.88 * dim})`;
+            if (d.status === 'severe') return `rgba(255,107,53,${0.82 * dim})`;
+            if (d.status === 'warning') return `rgba(255,184,0,${0.76 * dim})`;
+            return `rgba(68,204,136,${0.55 * dim})`;
+          }
+          return 'rgba(68,204,136,0.4)';
+        })
+        .pathStroke((d) => {
+          if (d.layerType === 'pipeline') return 0.6;
+          if (d.layerType === 'rail') return 0.8;
+          if (d.layerType === 'trade') {
+            const selected = selId != null && d.id === selId;
+            if (selected) return d.type === 'air' ? 0.9 : 0.88;
+            return d.type === 'air' ? 0.45 : d.status === 'critical' ? 0.9 : d.status === 'warning' ? 0.6 : 0.4;
+          }
+          return 1.2;
+        })
+        .pathDashLength((d) => {
+          if (d.layerType === 'pipeline') return 1.0;
+          if (d.layerType === 'rail') return 0.05;
+          if (d.layerType === 'trade') return d.type === 'air' ? 0.65 : 0.9;
+          return 0.02;
+        })
+        .pathDashGap((d) => {
+          if (d.layerType === 'pipeline') return 0.0;
+          if (d.layerType === 'rail') return 0.03;
+          if (d.layerType === 'trade') return d.type === 'air' ? 6 : 4;
+          return 0.008;
+        })
+        .pathDashAnimateTime((d) => {
+          if (d.layerType === 'pipeline') return 0;
+          if (d.layerType === 'rail') return 200000;
+          if (d.layerType === 'trade') {
+            const selected = selId != null && d.id === selId;
+            if (selected) return 9e15;
+            return d.type === 'air' ? 7000 : d.status === 'critical' ? 1800 : d.status === 'warning' ? 3500 : 5000;
+          }
+          return 100000;
+        })
+        .onPathClick((path, _ev) => {
+          if (path.layerType === 'trade' && onRouteSelect) onRouteSelect(path);
+        })
+        .pathLabel((d) => {
+          if (d.layerType !== 'trade') return '';
+          return `
         <div style="background:#0b1118;border:1px solid ${d.type === 'air' ? '#ff9500' : '#1e2d3d'};padding:6px 10px;border-radius:2px;font-family:'Space Mono',monospace;font-size:10px;color:#e8f4f8">
           <div style="color:${d.type === 'air' ? '#ffb35c' : '#00d4ff'};font-weight:700;margin-bottom:3px">${d.type === 'air' ? '✈️ Air Cargo' : d.from.name + ' → ' + d.to.name}</div>
           <div style="color:#5a7a8a">${d.type === 'air' ? `Planned air route · ${d.commodity || 'cargo'}` : `Risk: ${d.currentRisk?.toFixed(0) ?? d.baseRisk}/100 · ${d.commodity}`}</div>
         </div>
-      `,
-      );
-  }, [arcRoutesForGlobe, onRouteSelect, globeReady, selectedRouteId]);
-
-  useEffect(() => {
-    if (!globeRef.current) return;
-    const globe = globeRef.current;
-
-    const allStaticPaths = [
-      ...(visiblePipelines || []).map((p) => ({
-        ...p,
-        layerType: 'pipeline',
-        coords: corridorToCoords(p),
-      })),
-      ...(visibleRail || []).map((r) => ({
-        ...r,
-        layerType: 'rail',
-        coords: corridorToCoords(r),
-      })),
-    ];
-
-    globe
-      .pathsData(allStaticPaths)
-      .pathPoints((d) => d.coords)
-      .pathPointLat((pt) => pt[0])
-      .pathPointLng((pt) => pt[1])
-      .pathPointAlt(0.004)
-      .pathColor((d) => {
-        if (d.layerType === 'pipeline') {
-          return d.status === 'blocked'
-            ? 'rgba(255,0,0,0.8)'
-            : d.status === 'warning'
-              ? 'rgba(255,100,0,0.6)'
-              : 'rgba(255,68,0,0.35)';
-        }
-        if (d.layerType === 'rail') {
-          return d.status === 'warning' ? 'rgba(255,180,0,0.7)' : 'rgba(255,153,0,0.4)';
-        }
-        return 'rgba(68,204,136,0.4)';
-      })
-      .pathStroke((d) => {
-        if (d.layerType === 'pipeline') return 0.6;
-        if (d.layerType === 'rail') return 0.8;
-        return 1.2;
-      })
-      .pathDashLength((d) => {
-        if (d.layerType === 'pipeline') return 1.0;
-        if (d.layerType === 'rail') return 0.05;
-        return 0.02;
-      })
-      .pathDashGap((d) => {
-        if (d.layerType === 'pipeline') return 0.0;
-        if (d.layerType === 'rail') return 0.03;
-        return 0.008;
-      })
-      .pathDashAnimateTime((d) => {
-        if (d.layerType === 'pipeline') return 0;
-        if (d.layerType === 'rail') return 200000;
-        return 100000;
-      });
-  }, [visibleRail, visiblePipelines, globeReady]);
+      `;
+        });
+    } catch (err) {
+      if (selId) console.warn('Selected route failed render:', selId, err);
+      else console.warn('Failed to render paths:', err);
+    }
+  }, [visibleRail, visiblePipelines, arcsDataOrdered, onRouteSelect, globeReady, selId]);
 
   useEffect(() => {
     if (!globeRef.current || !chokepoints) return;
@@ -724,6 +817,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
             eventState={eventState}
             onRouteSelect={onRouteSelect}
             selectedRoute={selectedRoute}
+            selectedRouteId={selId}
           />
         </div>
       )}

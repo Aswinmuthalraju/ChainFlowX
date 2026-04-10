@@ -54,6 +54,42 @@ export function inferNearestChokepoint(lat, lng) {
   return null;
 }
 
+const CHOKEPOINT_ID_ORDER = CHOKEPOINT_COORDS.map((c) => c.id);
+
+/**
+ * Map LLM / text chokepoint labels to graph + INDUSTRY_MAP keys (CHKPT-*).
+ * Raw LLM values are often human names ("Suez Canal") and would otherwise skip
+ * geo inference while failing INDUSTRY_MAP lookup → empty industry cascade.
+ */
+export function normalizeChokepointToGraphId(rawValue, eventLat, eventLng) {
+  const inferred = inferNearestChokepoint(eventLat, eventLng);
+  if (rawValue == null || rawValue === '') return inferred;
+  const s = String(rawValue).trim();
+  if (!s) return inferred;
+
+  const chkptMatch = s.match(/^CHKPT-[A-Z0-9-]+$/i);
+  if (chkptMatch) {
+    const id = s.toUpperCase();
+    if (CHOKEPOINT_ID_ORDER.includes(id)) return id;
+    return inferred;
+  }
+
+  const lower = s.toLowerCase();
+  const aliasPairs = [
+    [/malacca/, 'CHKPT-MALACCA'],
+    [/suez/, 'CHKPT-SUEZ'],
+    [/hormuz|persian gulf/, 'CHKPT-HORMUZ'],
+    [/panama/, 'CHKPT-PANAMA'],
+    [/bab\s*el|mandeb|red sea|aden|houthi|yemen/, 'CHKPT-BAB'],
+    [/cape of good|cape route|good hope/, 'CHKPT-CAPE'],
+  ];
+  for (const [re, id] of aliasPairs) {
+    if (re.test(lower)) return id;
+  }
+
+  return inferred;
+}
+
 const VALID_EVENT_TYPES = ['cyclone', 'conflict', 'strike', 'earthquake', 'sanctions', 'blockage', 'other'];
 
 export function validateAndNormalizeClassification(raw, eventLat, eventLng) {
@@ -78,7 +114,11 @@ export function validateAndNormalizeClassification(raw, eventLat, eventLng) {
     result.severity = Math.max(0.0, Math.min(1.0, raw.severity));
   }
 
-  result.nearestChokepoint = raw.nearestChokepoint || inferNearestChokepoint(eventLat, eventLng);
+  result.nearestChokepoint = normalizeChokepointToGraphId(
+    raw.nearestChokepoint || raw?.entities?.chokepoints?.[0],
+    eventLat,
+    eventLng,
+  );
 
   if (typeof raw.region === 'string' && raw.region.trim().length > 0) {
     result.region = raw.region;
@@ -212,6 +252,16 @@ export async function runPipeline(event, graph) {
 
   // Step 7: getIndustryCascade (Layer 4)
   state.industryCascade = getIndustryCascade(classified.nearestChokepoint, finalRippleResult.raw, cascadeMaxDepth);
+
+  if (import.meta.env.DEV) {
+    console.log('[IndustryCascade trace] stored in pipeline state:', {
+      nearestChokepoint: classified.nearestChokepoint,
+      cascadeMaxDepth,
+      rippleRaw: finalRippleResult.raw,
+      cascadeLength: state.industryCascade?.length ?? 0,
+      payload: state.industryCascade,
+    });
+  }
 
   // Step 8: Layer 5 (Qwen3) NOT called here — on demand from UI only
 

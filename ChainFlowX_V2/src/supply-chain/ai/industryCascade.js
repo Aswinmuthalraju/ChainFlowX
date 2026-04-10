@@ -30,19 +30,38 @@ const INDUSTRY_MAP = {
 };
 
 export function getIndustryCascade(chokepointId, rippleScoreResult, maxCascadeDepthObserved) {
-  if (!chokepointId) return [];
-  
+  const input = { chokepointId, rippleScoreResult, maxCascadeDepthObserved };
+  if (!chokepointId) {
+    if (import.meta.env.DEV) {
+      console.log('industryCascade input:', input);
+      console.log('industryCascade output:', []);
+    }
+    return [];
+  }
+
   const industries = INDUSTRY_MAP[chokepointId] || [];
-  
-  // CRITICAL FIX #7
-  return industries.filter(ind => {
-    const hitsDepth = maxCascadeDepthObserved >= ind.minCascadeDepth;
-    const hitsScore = (rippleScoreResult || 0) >= ind.minRippleScore;
-    return hitsDepth && hitsScore;
-  }).map(ind => ({
-    sector: ind.sector,
-    companies: ind.companies,
-    daysToRisk: ind.daysToRisk,
-    riskLevel: ind.riskLevel
-  }));
+  if (!industries.length && import.meta.env.DEV) {
+    console.warn('industryCascade: no INDUSTRY_MAP entry for chokepointId:', chokepointId);
+  }
+
+  // CRITICAL FIX #7 — depth + ripple raw gates reduce false positives
+  const cascadeResult = industries
+    .filter((ind) => {
+      const hitsDepth = maxCascadeDepthObserved >= ind.minCascadeDepth;
+      const hitsScore = (rippleScoreResult || 0) >= ind.minRippleScore;
+      return hitsDepth && hitsScore;
+    })
+    .map((ind) => ({
+      sector: ind.sector,
+      companies: ind.companies,
+      daysToRisk: ind.daysToRisk,
+      riskLevel: ind.riskLevel,
+    }));
+
+  if (import.meta.env.DEV) {
+    console.log('industryCascade input:', input);
+    console.log('industryCascade output:', cascadeResult);
+  }
+
+  return cascadeResult;
 }

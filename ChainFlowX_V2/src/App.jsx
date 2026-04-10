@@ -67,7 +67,7 @@ export default function App() {
   const [routes, setRoutes] = useState(ROUTES);
   const [activePage, setActivePage] = useState('dashboard');
   const [eventState, setEventState] = useState(null);
-  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [insightLoading, setInsightLoading] = useState(false);
   const [graphValid, setGraphValid] = useState(false);
@@ -107,6 +107,11 @@ export default function App() {
     transportRoutes.forEach((route) => map.set(route.id, route));
     return map;
   }, [transportRoutes]);
+
+  const selectedRoute = useMemo(
+    () => (selectedRouteId ? routes.find((r) => r.id === selectedRouteId) ?? null : null),
+    [routes, selectedRouteId],
+  );
 
   useEffect(() => {
     positionTracker.setRoutes(ROUTES);
@@ -186,26 +191,30 @@ export default function App() {
     lastGlobeInteractRef.current = Date.now();
   }, []);
 
-  const handleRouteSelect = useCallback(
-    (route) => {
-      setSelectedRoute(route);
-      if (!route?.id || !route.from || !route.to) return;
+  const handleRouteSelect = useCallback((route) => {
+    if (route == null) {
+      setSelectedRouteId(null);
+      return;
+    }
+    if (!route?.id) return;
 
-      const inGlobe = new Set([
-        ...routes.map((r) => r.id),
-        ...airRoutes.filter((r) => !routes.some((x) => x.id === r.id)).map((r) => r.id),
-      ]);
-      if (!inGlobe.has(route.id)) {
-        console.warn(`Route missing in globe dataset: ${route.id}`);
-      }
+    setSelectedRouteId(route.id);
 
+    const inGlobe = new Set([
+      ...routes.map((r) => r.id),
+      ...airRoutes.filter((r) => !routes.some((x) => x.id === r.id)).map((r) => r.id),
+    ]);
+    if (!inGlobe.has(route.id)) {
+      console.warn('Selected route missing:', route.id);
+    }
+
+    if (route.from && route.to) {
       const mid = routeArcMidpoint(route);
       if (mid) {
-        globeRef.current?.pointOfView({ lat: mid.lat, lng: mid.lng, altitude: 1.75 }, 1400);
+        globeRef.current?.pointOfView({ lat: mid.lat, lng: mid.lng, altitude: 1.75 }, 1200);
       }
-    },
-    [routes, airRoutes],
-  );
+    }
+  }, [routes, airRoutes]);
 
   const handleEventTrigger = useCallback(
     async (event) => {
@@ -215,7 +224,7 @@ export default function App() {
         autoInitPendingRef.current = false;
         setEventState(null);
         setRoutes(ROUTES.map((r) => ({ ...r, currentRisk: r.baseRisk, status: 'normal' })));
-        setSelectedRoute(null);
+        setSelectedRouteId(null);
         setGlobeRings([]);
         lastGlobeInteractRef.current = 0;
         return;
@@ -232,6 +241,9 @@ export default function App() {
       setIsLoading(true);
       try {
         const state = await runPipeline(event, graph);
+        if (import.meta.env.DEV) {
+          console.log('Cascade stored in dashboard state:', state.industryCascade);
+        }
         setEventState(state);
         setRoutes((prev) =>
           prev.map((r) => ({
@@ -241,7 +253,13 @@ export default function App() {
           })),
         );
         const near = findNearestRoute(ROUTES, event.lat, event.lng);
-        if (near) handleRouteSelect(near);
+        if (near?.id) {
+          setSelectedRouteId(near.id);
+          if (near.from && near.to) {
+            const mid = routeArcMidpoint(near);
+            if (mid) globeRef.current?.pointOfView({ lat: mid.lat, lng: mid.lng, altitude: 1.75 }, 1200);
+          }
+        }
       } catch (err) {
         didAutoInitRef.current = false;
         console.error('[ChainFlowX] Pipeline error:', err);
@@ -249,7 +267,7 @@ export default function App() {
         setIsLoading(false);
       }
     },
-    [graph, addGlobeRing, handleRouteSelect],
+    [graph, addGlobeRing],
   );
 
   useEffect(() => {
@@ -446,6 +464,7 @@ export default function App() {
                   chokepoints={CHOKEPOINTS}
                   eventState={eventState}
                   onRouteSelect={handleRouteSelect}
+                  selectedRouteId={selectedRouteId}
                   selectedRoute={selectedRoute}
                   mapMode={mapMode}
                   eventRings={globeRings}
@@ -473,7 +492,7 @@ export default function App() {
           </div>
           <RoutesPage
             routes={routes}
-            selectedRoute={selectedRoute}
+            selectedRouteId={selectedRouteId}
             onRouteSelect={handleRouteSelect}
             liveVessels={liveVessels}
           />
@@ -505,6 +524,7 @@ export default function App() {
                 chokepoints={CHOKEPOINTS}
                 eventState={eventState}
                 onRouteSelect={handleRouteSelect}
+                selectedRouteId={selectedRouteId}
                 selectedRoute={selectedRoute}
                 mapMode={mapMode}
                 eventRings={globeRings}
@@ -591,14 +611,14 @@ export default function App() {
                 <div className="panel">
                   <div className="route-detail-header" style={{ marginBottom: 8 }}>
                     <span className="route-detail-label">Strategic Risk Overview</span>
-                    <button className="route-close-btn" onClick={() => setSelectedRoute(null)}>
+                    <button className="route-close-btn" onClick={() => setSelectedRouteId(null)}>
                       ×
                     </button>
                   </div>
                   <RouteDetailPanel
                     route={selectedRoute}
                     altRoute={eventState?.altRoutes?.[selectedRoute.id]}
-                    onClose={() => setSelectedRoute(null)}
+                    onClose={() => setSelectedRouteId(null)}
                   />
                 </div>
               ) : (
