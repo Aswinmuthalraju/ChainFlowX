@@ -50,6 +50,18 @@ function findNearestRoute(routes, lat, lng) {
   return null;
 }
 
+function routeArcMidpoint(route) {
+  if (!route?.from || !route?.to) return null;
+  const lat = (route.from.lat + route.to.lat) / 2;
+  let dLon = route.to.lng - route.from.lng;
+  if (dLon > 180) dLon -= 360;
+  if (dLon < -180) dLon += 360;
+  let lng = route.from.lng + dLon / 2;
+  while (lng > 180) lng -= 360;
+  while (lng < -180) lng += 360;
+  return { lat, lng };
+}
+
 export default function App() {
   const [graph, setGraph] = useState(null);
   const [routes, setRoutes] = useState(ROUTES);
@@ -174,6 +186,27 @@ export default function App() {
     lastGlobeInteractRef.current = Date.now();
   }, []);
 
+  const handleRouteSelect = useCallback(
+    (route) => {
+      setSelectedRoute(route);
+      if (!route?.id || !route.from || !route.to) return;
+
+      const inGlobe = new Set([
+        ...routes.map((r) => r.id),
+        ...airRoutes.filter((r) => !routes.some((x) => x.id === r.id)).map((r) => r.id),
+      ]);
+      if (!inGlobe.has(route.id)) {
+        console.warn(`Route missing in globe dataset: ${route.id}`);
+      }
+
+      const mid = routeArcMidpoint(route);
+      if (mid) {
+        globeRef.current?.pointOfView({ lat: mid.lat, lng: mid.lng, altitude: 1.75 }, 1400);
+      }
+    },
+    [routes, airRoutes],
+  );
+
   const handleEventTrigger = useCallback(
     async (event) => {
       if (!graph) return;
@@ -184,6 +217,7 @@ export default function App() {
         setRoutes(ROUTES.map((r) => ({ ...r, currentRisk: r.baseRisk, status: 'normal' })));
         setSelectedRoute(null);
         setGlobeRings([]);
+        lastGlobeInteractRef.current = 0;
         return;
       }
       if (!intelligenceRef.current) {
@@ -207,7 +241,7 @@ export default function App() {
           })),
         );
         const near = findNearestRoute(ROUTES, event.lat, event.lng);
-        if (near) setSelectedRoute(near);
+        if (near) handleRouteSelect(near);
       } catch (err) {
         didAutoInitRef.current = false;
         console.error('[ChainFlowX] Pipeline error:', err);
@@ -215,7 +249,7 @@ export default function App() {
         setIsLoading(false);
       }
     },
-    [graph, addGlobeRing],
+    [graph, addGlobeRing, handleRouteSelect],
   );
 
   useEffect(() => {
@@ -393,18 +427,64 @@ export default function App() {
       </div>
 
       {activePage === 'routes' && (
-        <RoutesPage
-          routes={routes}
-          selectedRoute={selectedRoute}
-          onRouteSelect={setSelectedRoute}
-        />
+        <>
+          <div
+            className="routes-tab-globe-wrap globe-container"
+            style={{
+              flex: '0 0 420px',
+              position: 'relative',
+              width: '100%',
+              minHeight: 200,
+              maxHeight: 'min(420px, 38vh)',
+            }}
+          >
+            {graph && (
+              <>
+                <SupplyChainGlobe
+                  ref={globeRef}
+                  routes={routes}
+                  chokepoints={CHOKEPOINTS}
+                  eventState={eventState}
+                  onRouteSelect={handleRouteSelect}
+                  selectedRoute={selectedRoute}
+                  mapMode={mapMode}
+                  eventRings={globeRings}
+                  onGlobeUserInteract={handleGlobeUserInteract}
+                  onGlobeInitError={() => {
+                    setGlobeUnavailable(true);
+                    setMapMode('2d');
+                  }}
+                  liveVessels={visibleVessels}
+                  liveAircraft={visibleAircraft}
+                  visibleRail={visibleRail}
+                  visiblePipelines={visiblePipelines}
+                  airRoutes={airRoutes}
+                />
+                <LayerControl
+                  layerVisibility={layerVisibility}
+                  onToggle={(layerName, enabled) =>
+                    setLayerVisibility((prev) => ({ ...prev, [layerName]: enabled }))
+                  }
+                  vesselCount={liveVessels.length}
+                  aircraftCount={liveAircraft.length}
+                />
+              </>
+            )}
+          </div>
+          <RoutesPage
+            routes={routes}
+            selectedRoute={selectedRoute}
+            onRouteSelect={handleRouteSelect}
+            liveVessels={liveVessels}
+          />
+        </>
       )}
 
       {activePage === 'intelligence' && (
         <IntelligenceFeed
-          onRouteSelect={(route) => {
-            setSelectedRoute(route);
-          }}
+          liveEvents={liveArticles}
+          feedUpdatedAt={feedUpdatedAt}
+          onRouteSelect={handleRouteSelect}
           onOpenRoutes={() => setActivePage('routes')}
         />
       )}
@@ -424,7 +504,8 @@ export default function App() {
                 routes={routes}
                 chokepoints={CHOKEPOINTS}
                 eventState={eventState}
-                onRouteSelect={setSelectedRoute}
+                onRouteSelect={handleRouteSelect}
+                selectedRoute={selectedRoute}
                 mapMode={mapMode}
                 eventRings={globeRings}
                 onGlobeUserInteract={handleGlobeUserInteract}

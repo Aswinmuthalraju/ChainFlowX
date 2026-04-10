@@ -39,6 +39,8 @@ let _lastStatusMap = {};
 /** @type {Record<string, object>} */
 let _lastCacheRef = {};
 let _lastMergeAt = 0;
+/** @type {null | (() => Promise<void>)} */
+let _activeFeedTick = null;
 
 const LLM_RESULT_CACHE = new Map();
 const LLM_CACHE_MAX = 300;
@@ -553,8 +555,11 @@ export function getFeedStatus() {
   return buildFeedStatusRows(_lastStatusMap, _lastCacheRef);
 }
 
-export function fetchLatestEvents() {
-  return Promise.resolve(_lastArticlesSnapshot.slice());
+export async function fetchLatestEvents() {
+  if (typeof _activeFeedTick === 'function') {
+    await _activeFeedTick();
+  }
+  return _lastArticlesSnapshot.slice();
 }
 
 async function maybeUpgradeLlm(article) {
@@ -765,6 +770,7 @@ export function startLiveEventFeed(options) {
     }
   };
 
+  _activeFeedTick = tick;
   tick();
   timerId = setInterval(tick, pollIntervalMs);
 
@@ -778,6 +784,7 @@ export const startLiveFeed = startLiveEventFeed;
 
 export function stopLiveEventFeed() {
   stopped = true;
+  _activeFeedTick = null;
   if (timerId != null) {
     clearInterval(timerId);
     timerId = null;

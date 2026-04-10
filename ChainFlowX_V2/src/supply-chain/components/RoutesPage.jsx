@@ -1,10 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import RouteDetailPanel from './RouteDetailPanel.jsx';
 import RouteRiskIndicator from './RouteRiskIndicator.jsx';
 import { calcAltRoute } from '../engine/altRouteCalc.js';
 
-export default function RoutesPage({ routes, selectedRoute: externallySelectedRoute, onRouteSelect }) {
-  const [selectedRoute, setSelectedRoute] = useState(externallySelectedRoute || null);
+export default function RoutesPage({ routes, selectedRoute: externallySelectedRoute, onRouteSelect, liveVessels = [] }) {
+  const [selectedRoute, setSelectedRoute] = useState(externallySelectedRoute ?? null);
+
+  useEffect(() => {
+    setSelectedRoute(externallySelectedRoute ?? null);
+  }, [externallySelectedRoute]);
   const [filterRisk, setFilterRisk] = useState('all');
   const [sortBy, setSortBy] = useState('risk');
 
@@ -35,6 +39,15 @@ export default function RoutesPage({ routes, selectedRoute: externallySelectedRo
     () => routes.reduce((sum, route) => sum + (Number(route.tradeVolumeM) || 0), 0),
     [routes],
   );
+
+  const vesselCountByRouteId = useMemo(() => {
+    const m = new Map();
+    for (const v of liveVessels) {
+      if (!v?.routeId) continue;
+      m.set(v.routeId, (m.get(v.routeId) || 0) + 1);
+    }
+    return m;
+  }, [liveVessels]);
 
   const selectRoute = (route) => {
     setSelectedRoute(route);
@@ -77,6 +90,8 @@ export default function RoutesPage({ routes, selectedRoute: externallySelectedRo
           {sortedRoutes.map((route) => {
             const isSelected = resolvedSelectedRoute?.id === route.id;
             const risk = route.currentRisk ?? route.baseRisk ?? 0;
+            const liveShips = route.type === 'maritime' ? vesselCountByRouteId.get(route.id) || 0 : 0;
+            const hasLiveTraffic = route.type === 'maritime' && (liveShips > 0 || route.currentPosition);
             return (
               <article
                 key={route.id}
@@ -92,6 +107,11 @@ export default function RoutesPage({ routes, selectedRoute: externallySelectedRo
                   <span>{route.type.toUpperCase()}</span>
                   <span>{route.normalTransitHours < 24 ? `${route.normalTransitHours}h` : `${Math.round(route.normalTransitHours / 24)}d`}</span>
                   <span>${route.tradeVolumeM}B/yr</span>
+                  {hasLiveTraffic ? (
+                    <span title={liveShips ? `${liveShips} simulated vessels on route` : 'Position from live tracker'} style={{ color: '#00d4ff' }}>
+                      LIVE
+                    </span>
+                  ) : null}
                 </div>
 
                 <p className="route-card__path">{route.from.name} {'->'} {route.to.name}</p>

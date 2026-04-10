@@ -4,7 +4,7 @@ import { VESSEL_COLORS } from '../data/transportMaritime.js';
 import { DEFAULT_18_ROUTES } from '../data/default18Routes.js';
 
 // ── 2D flat map (SVG equirectangular radar display) ──────────────────────────
-function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
+function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect, selectedRoute }) {
   const W = 1000,
     H = 500;
 
@@ -121,8 +121,19 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
       {routes &&
         routes.map((route) => {
           const routeEnd = route.currentPosition || route.to;
+          const isSelected = selectedRoute?.id === route.id;
           return (
           <g key={route.id} style={{ cursor: 'pointer' }} onClick={() => onRouteSelect && onRouteSelect(route)}>
+            {isSelected && (
+              <path
+                d={arcPath(route.from, routeEnd)}
+                fill="none"
+                stroke="rgba(0,255,255,0.85)"
+                strokeWidth={arcStroke(route.status) + 5}
+                strokeOpacity={0.35}
+                style={{ animation: 'routePulse2d 1.4s ease-in-out infinite' }}
+              />
+            )}
             {(route.status === 'critical' || route.status === 'severe') && (
               <path
                 d={arcPath(route.from, routeEnd)}
@@ -135,10 +146,11 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
             <path
               d={arcPath(route.from, routeEnd)}
               fill="none"
-              stroke={arcColor(route.status)}
-              strokeWidth={arcStroke(route.status)}
-              strokeOpacity={arcOpacity(route.status)}
+              stroke={isSelected ? '#00ffff' : arcColor(route.status)}
+              strokeWidth={isSelected ? arcStroke(route.status) + 1.4 : arcStroke(route.status)}
+              strokeOpacity={isSelected ? 1 : arcOpacity(route.status)}
               strokeLinecap="round"
+              style={isSelected ? { filter: 'drop-shadow(0 0 4px rgba(0,255,255,0.9))' } : undefined}
             />
 
             {route.currentPosition && (
@@ -233,6 +245,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
     chokepoints,
     eventState,
     onRouteSelect,
+    selectedRoute = null,
     mapMode,
     eventRings = [],
     onGlobeUserInteract,
@@ -263,6 +276,14 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
     if (routes && routes.length > 0) return routes;
     return DEFAULT_18_ROUTES;
   }, [routes]);
+
+  const arcRoutesForGlobe = useMemo(() => {
+    const dr = displayRoutes || [];
+    const airOnly = (airRoutes || []).filter((a) => !dr.some((r) => r.id === a.id));
+    return [...dr, ...airOnly];
+  }, [displayRoutes, airRoutes]);
+
+  const selectedRouteId = selectedRoute?.id ?? null;
 
   useEffect(() => {
     console.log('[ChainFlowX] Display routes:', displayRoutes.length, 'Chokepoints:', chokepoints?.length ?? 0);
@@ -347,7 +368,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
   }, []);
 
   useEffect(() => {
-    const allRoutes = [...displayRoutes, ...(airRoutes || [])];
+    const allRoutes = arcRoutesForGlobe;
     if (!globeRef.current || !allRoutes.length) return;
     const globe = globeRef.current;
 
@@ -358,6 +379,8 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
       .arcEndLat((d) => (d.type === 'air' ? d.to.lat : d.currentPosition?.lat ?? d.to.lat))
       .arcEndLng((d) => (d.type === 'air' ? d.to.lng : d.currentPosition?.lng ?? d.to.lng))
       .arcColor((d) => {
+        const selected = selectedRouteId != null && d.id === selectedRouteId;
+        if (selected) return ['rgba(0,212,255,0.22)', 'rgba(0,255,255,0.95)', 'rgba(0,212,255,0.22)'];
         if (d.type === 'air') return ['rgba(255,149,0,0.05)', 'rgba(255,149,0,0.95)', 'rgba(255,149,0,0.05)'];
         if (d.status === 'critical') return ['rgba(255,59,59,0.08)', 'rgba(255,59,59,0.9)', 'rgba(255,59,59,0.08)'];
         if (d.status === 'severe') return ['rgba(255,107,53,0.08)', 'rgba(255,107,53,0.85)', 'rgba(255,107,53,0.08)'];
@@ -365,10 +388,18 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
         return ['rgba(68,204,136,0.04)', 'rgba(68,204,136,0.6)', 'rgba(68,204,136,0.04)'];
       })
       .arcAltitudeAutoScale((d) => (d.type === 'air' ? 0.22 : 0.3))
-      .arcStroke((d) => (d.type === 'air' ? 0.45 : d.status === 'critical' ? 0.9 : d.status === 'warning' ? 0.6 : 0.4))
+      .arcStroke((d) => {
+        const selected = selectedRouteId != null && d.id === selectedRouteId;
+        if (selected) return d.type === 'air' ? 0.85 : 1.05;
+        return d.type === 'air' ? 0.45 : d.status === 'critical' ? 0.9 : d.status === 'warning' ? 0.6 : 0.4;
+      })
       .arcDashLength((d) => (d.type === 'air' ? 0.65 : 0.9))
       .arcDashGap((d) => (d.type === 'air' ? 6 : 4))
-      .arcDashAnimateTime((d) => (d.type === 'air' ? 7000 : d.status === 'critical' ? 1800 : d.status === 'warning' ? 3500 : 5000))
+      .arcDashAnimateTime((d) => {
+        const selected = selectedRouteId != null && d.id === selectedRouteId;
+        if (selected) return d.type === 'air' ? 2200 : 1100;
+        return d.type === 'air' ? 7000 : d.status === 'critical' ? 1800 : d.status === 'warning' ? 3500 : 5000;
+      })
       .onArcClick((arc) => onRouteSelect && onRouteSelect(arc))
       .arcLabel(
         (d) => `
@@ -378,7 +409,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
         </div>
       `,
       );
-  }, [displayRoutes, airRoutes, onRouteSelect, globeReady]);
+  }, [arcRoutesForGlobe, onRouteSelect, globeReady, selectedRouteId]);
 
   useEffect(() => {
     if (!globeRef.current) return;
@@ -726,6 +757,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
             chokepoints={chokepoints}
             eventState={eventState}
             onRouteSelect={onRouteSelect}
+            selectedRoute={selectedRoute}
           />
         </div>
       )}
