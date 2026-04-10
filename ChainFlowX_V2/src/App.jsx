@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { buildGraph, validateGraph } from './supply-chain/graph/graphUtils.js';
 import { runPipeline, haversineKm } from './supply-chain/state/stateManager.js';
 import { synthesizeStrategicInsight } from './supply-chain/ai/qwenAI.js';
@@ -6,15 +6,17 @@ import { PORTS } from './supply-chain/data/ports.js';
 import { ROUTES } from './supply-chain/data/routes.js';
 import { CHOKEPOINTS } from './supply-chain/data/chokepoints.js';
 import { startLiveEventFeed, liveArticleToPipelineEvent } from './supply-chain/data/liveEventFeed.js';
-import {
-  startAllTransportTracking,
-  stopAllTransportTracking,
-} from './supply-chain/data/transportLayerManager.js';
 import { RAIL_CORRIDORS } from './supply-chain/data/transportRail.js';
 import { PIPELINE_CORRIDORS } from './supply-chain/data/transportPipeline.js';
+import {
+  getTransportSimulationRoutes,
+  generateShipsOnRoutes,
+  generateAircraftOnRoutes,
+  advanceSimulatedTransport,
+} from './supply-chain/data/simulateTransportOnRoutes.js';
 
 import SupplyChainGlobe from './supply-chain/components/SupplyChainGlobe.jsx';
-import LayerToggle from './supply-chain/components/LayerToggle.jsx';
+import LayerControl from './supply-chain/components/LayerControl.jsx';
 import RippleScorePanel from './supply-chain/components/RippleScorePanel.jsx';
 import DNAMatchPanel from './supply-chain/components/DNAMatchPanel.jsx';
 import IndustryCascadePanel from './supply-chain/components/IndustryCascadePanel.jsx';
@@ -80,9 +82,15 @@ export default function App() {
   const pipelineHandlerRef = useRef(null);
   const globeRef = useRef(null);
   const lastGlobeInteractRef = useRef(0);
-  const trackingRefs = useRef({});
   const didAutoInitRef = useRef(false);
   const autoInitPendingRef = useRef(false);
+  const transportRoutes = useMemo(() => getTransportSimulationRoutes(ROUTES), []);
+  const airRoutes = useMemo(() => transportRoutes.filter((route) => route.type === 'air'), [transportRoutes]);
+  const transportRouteMap = useMemo(() => {
+    const map = new Map();
+    transportRoutes.forEach((route) => map.set(route.id, route));
+    return map;
+  }, [transportRoutes]);
 
   useEffect(() => {
     isLoadingRef.current = isLoading;
@@ -99,6 +107,21 @@ export default function App() {
     setGraph(g);
     setGraphValid(valid);
   }, []);
+
+  useEffect(() => {
+    // Demo-focused fallback: keep transport on monitored routes only.
+    setLiveVessels(generateShipsOnRoutes(transportRoutes));
+    setLiveAircraft(generateAircraftOnRoutes(transportRoutes));
+  }, [transportRoutes]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setLiveVessels((prev) => advanceSimulatedTransport(prev, transportRouteMap));
+      setLiveAircraft((prev) => advanceSimulatedTransport(prev, transportRouteMap));
+    }, 7000);
+
+    return () => window.clearInterval(interval);
+  }, [transportRouteMap]);
 
   const addGlobeRing = useCallback((ev) => {
     const id = String(ev?.id || ev?.url || "ring-" + Date.now());
@@ -182,34 +205,6 @@ export default function App() {
     void handleEventTrigger(liveArticleToPipelineEvent(first));
   }, [graph, intelligenceOn, isLoading, eventState, liveArticles, handleEventTrigger]);
 
-  useEffect(() => {
-    const refs = startAllTransportTracking({
-      onVesselUpdate: (vessel) =>
-        setLiveVessels((prev) => {
-          const idx = prev.findIndex((v) => v.mmsi === vessel.mmsi);
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = vessel;
-            return next;
-          }
-          return [...prev, vessel].slice(-200);
-        }),
-      onAircraftUpdate: (aircraft) =>
-        setLiveAircraft((prev) => {
-          const idx = prev.findIndex((a) => a.icao24 === aircraft.icao24);
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = aircraft;
-            return next;
-          }
-          return [...prev, aircraft].slice(-100);
-        }),
-      onStatusChange: () => {},
-    });
-    trackingRefs.current = refs;
-
-    return () => stopAllTransportTracking(trackingRefs.current);
-  }, []);
 
   useEffect(() => {
     if (!graph) return;
@@ -378,6 +373,7 @@ export default function App() {
                 liveAircraft={visibleAircraft}
                 visibleRail={visibleRail}
                 visiblePipelines={visiblePipelines}
+                airRoutes={airRoutes}
               />
             )}
 
@@ -402,11 +398,13 @@ export default function App() {
               </div>
             )}
 
-            <LayerToggle
+            <LayerControl
               layerVisibility={layerVisibility}
               onToggle={(layerName, enabled) =>
                 setLayerVisibility((prev) => ({ ...prev, [layerName]: enabled }))
               }
+              vesselCount={liveVessels.length}
+              aircraftCount={liveAircraft.length}
             />
 
             {isLoading && (

@@ -23,16 +23,61 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
 
   const arcStroke = (status) => (status === 'critical' ? 2.5 : status === 'warning' ? 1.8 : 1.2);
 
+  // Handles anti-meridian crossing: splits arc into two segments when the
+  // shortest-path longitude delta wraps past ±180°.
   const arcPath = (from, to) => {
-    const x1 = toX(from.lng),
-      y1 = toY(from.lat);
-    const x2 = toX(to.lng),
-      y2 = toY(to.lat);
-    const cx = (x1 + x2) / 2;
-    const dy = Math.abs(x2 - x1) * 0.18;
+    const x1 = toX(from.lng);
+    const y1 = toY(from.lat);
+    const x2 = toX(to.lng);
+    const y2 = toY(to.lat);
+
+    let dLng = to.lng - from.lng;
+    if (dLng > 180) dLng -= 360;
+    if (dLng < -180) dLng += 360;
+
+    const x2eff = x1 + (dLng / 360) * W;
+
+    if (x2eff < 0 || x2eff > W) {
+      // Route crosses the anti-meridian — draw two segments
+      const isRight = x2eff > W;
+      const xEdge1 = isRight ? W : 0;
+      const xEdge2 = isRight ? 0 : W;
+      const frac = Math.abs((xEdge1 - x1) / (x2eff - x1));
+      const yMid = y1 + (y2 - y1) * frac;
+      const cx1 = (x1 + xEdge1) / 2;
+      const cy1 = (y1 + yMid) / 2 - Math.abs(xEdge1 - x1) * 0.15;
+      const cx2 = (xEdge2 + x2) / 2;
+      const cy2 = (yMid + y2) / 2 - Math.abs(x2 - xEdge2) * 0.15;
+      return `M ${x1} ${y1} Q ${cx1} ${cy1} ${xEdge1} ${yMid} M ${xEdge2} ${yMid} Q ${cx2} ${cy2} ${x2} ${y2}`;
+    }
+
+    const cx = (x1 + x2eff) / 2;
+    const dy = Math.abs(x2eff - x1) * 0.18;
     const cy = (y1 + y2) / 2 - dy;
-    return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+    return `M ${x1} ${y1} Q ${cx} ${cy} ${x2eff} ${y2}`;
   };
+
+  // Convert [[lng, lat], ...] to SVG polygon points string
+  const toPts = (coords) =>
+    coords.map(([lng, lat]) => `${toX(lng).toFixed(1)},${toY(lat).toFixed(1)}`).join(' ');
+
+  // Simplified continent polygons as [lng, lat] pairs
+  const CONTINENTS = [
+    // North America
+    [[-165,60],[-130,55],[-124,48],[-117,33],[-110,23],[-83,10],[-77,8],[-80,26],[-75,36],[-70,42],[-60,46],[-52,47],[-60,63],[-80,70],[-100,73],[-140,70],[-165,60]],
+    // South America
+    [[-77,8],[-60,11],[-50,5],[-35,-5],[-38,-23],[-50,-30],[-58,-38],[-67,-56],[-75,-40],[-80,-5],[-77,8]],
+    // Europe
+    [[-9,39],[-5,57],[5,58],[15,69],[25,71],[28,65],[30,60],[37,55],[35,45],[28,41],[26,40],[10,37],[16,38],[2,43],[-2,44],[-9,39]],
+    // Africa
+    [[-13,36],[10,37],[25,31],[35,30],[51,12],[40,-10],[34,-35],[18,-35],[15,-30],[2,4],[-15,9],[-17,15],[-13,36]],
+    // Asia (mainland + Russia)
+    [[26,40],[37,37],[45,30],[56,24],[68,24],[80,8],[92,22],[105,11],[109,12],[120,24],[122,38],[128,38],[130,50],[140,50],[132,72],[100,70],[75,50],[55,55],[37,55],[30,60],[26,40]],
+    // Australia
+    [[113,-22],[130,-12],[145,-15],[150,-38],[130,-37],[114,-34],[113,-22]],
+    // Greenland
+    [[-55,75],[-20,72],[-18,77],[-35,83],[-55,82],[-55,75]],
+  ];
 
   const latLines = [-60, -30, 0, 30, 60];
   const lngLines = [-150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150];
@@ -44,14 +89,11 @@ function FlatMap2D({ routes, chokepoints, eventState, onRouteSelect }) {
     >
       <rect x="0" y="0" width={W} height={H} fill="#050b12" />
 
-      {/* Stylized continent silhouettes (geographic cue; not chart/graph grid alone) */}
-      <g opacity={0.14} fill="#6b7d8f">
-        <ellipse cx="235" cy="128" rx="102" ry="98" />
-        <ellipse cx="278" cy="305" rx="58" ry="118" />
-        <ellipse cx="518" cy="168" rx="62" ry="152" />
-        <ellipse cx="712" cy="138" rx="132" ry="108" />
-        <ellipse cx="832" cy="362" rx="68" ry="44" />
-        <ellipse cx="432" cy="398" rx="38" ry="30" />
+      {/* Continent silhouettes */}
+      <g opacity={0.18} fill="#3d5c6e" stroke="#5a7a8a" strokeWidth="0.5">
+        {CONTINENTS.map((pts, i) => (
+          <polygon key={i} points={toPts(pts)} />
+        ))}
       </g>
 
       {latLines.map((lat, i) => {
@@ -185,6 +227,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
     liveAircraft = [],
     visibleRail = [],
     visiblePipelines = [],
+    airRoutes = [],
     onGlobeInitError,
   },
   ref,
@@ -193,6 +236,7 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
   const globeRef = useRef();
   const [globeReady, setGlobeReady] = useState(0);
   const [globeInitFailed, setGlobeInitFailed] = useState(false);
+  const [selectedTransport, setSelectedTransport] = useState(null);
   const onInteractRef = useRef(onGlobeUserInteract);
   const onGlobeErrorRef = useRef(onGlobeInitError);
   useEffect(() => {
@@ -248,8 +292,8 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
 
       const controls = globe.controls();
       if (controls) {
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.3;
+        controls.autoRotate = false;
+        controls.autoRotateSpeed = 0;
         controls.enablePan = false;
         controls.enableZoom = true;
         controls.zoomSpeed = 1.4;
@@ -290,36 +334,38 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
   }, []);
 
   useEffect(() => {
-    if (!globeRef.current || !displayRoutes.length) return;
+    const allRoutes = [...displayRoutes, ...(airRoutes || [])];
+    if (!globeRef.current || !allRoutes.length) return;
     const globe = globeRef.current;
 
     globe
-      .arcsData(displayRoutes)
+      .arcsData(allRoutes)
       .arcStartLat((d) => d.from.lat)
       .arcStartLng((d) => d.from.lng)
       .arcEndLat((d) => d.to.lat)
       .arcEndLng((d) => d.to.lng)
       .arcColor((d) => {
+        if (d.type === 'air') return ['rgba(255,149,0,0.05)', 'rgba(255,149,0,0.95)', 'rgba(255,149,0,0.05)'];
         if (d.status === 'critical') return ['rgba(255,59,59,0.08)', 'rgba(255,59,59,0.9)', 'rgba(255,59,59,0.08)'];
         if (d.status === 'severe') return ['rgba(255,107,53,0.08)', 'rgba(255,107,53,0.85)', 'rgba(255,107,53,0.08)'];
         if (d.status === 'warning') return ['rgba(255,184,0,0.06)', 'rgba(255,184,0,0.8)', 'rgba(255,184,0,0.06)'];
         return ['rgba(68,204,136,0.04)', 'rgba(68,204,136,0.6)', 'rgba(68,204,136,0.04)'];
       })
-      .arcAltitudeAutoScale(0.3)
-      .arcStroke((d) => (d.status === 'critical' ? 0.9 : d.status === 'warning' ? 0.6 : 0.4))
-      .arcDashLength(0.9)
-      .arcDashGap(4)
-      .arcDashAnimateTime((d) => (d.status === 'critical' ? 1800 : d.status === 'warning' ? 3500 : 5000))
+      .arcAltitudeAutoScale((d) => (d.type === 'air' ? 0.22 : 0.3))
+      .arcStroke((d) => (d.type === 'air' ? 0.45 : d.status === 'critical' ? 0.9 : d.status === 'warning' ? 0.6 : 0.4))
+      .arcDashLength((d) => (d.type === 'air' ? 0.65 : 0.9))
+      .arcDashGap((d) => (d.type === 'air' ? 6 : 4))
+      .arcDashAnimateTime((d) => (d.type === 'air' ? 7000 : d.status === 'critical' ? 1800 : d.status === 'warning' ? 3500 : 5000))
       .onArcClick((arc) => onRouteSelect && onRouteSelect(arc))
       .arcLabel(
         (d) => `
-        <div style="background:#0b1118;border:1px solid #1e2d3d;padding:6px 10px;border-radius:2px;font-family:'Space Mono',monospace;font-size:10px;color:#e8f4f8">
-          <div style="color:#00d4ff;font-weight:700;margin-bottom:3px">${d.from.name} → ${d.to.name}</div>
-          <div style="color:#5a7a8a">Risk: ${d.currentRisk?.toFixed(0) ?? d.baseRisk}/100 · ${d.commodity}</div>
+        <div style="background:#0b1118;border:1px solid ${d.type === 'air' ? '#ff9500' : '#1e2d3d'};padding:6px 10px;border-radius:2px;font-family:'Space Mono',monospace;font-size:10px;color:#e8f4f8">
+          <div style="color:${d.type === 'air' ? '#ffb35c' : '#00d4ff'};font-weight:700;margin-bottom:3px">${d.type === 'air' ? '✈️ Air Cargo' : d.from.name + ' → ' + d.to.name}</div>
+          <div style="color:#5a7a8a">${d.type === 'air' ? `Planned air route · ${d.commodity || 'cargo'}` : `Risk: ${d.currentRisk?.toFixed(0) ?? d.baseRisk}/100 · ${d.commodity}`}</div>
         </div>
       `,
       );
-  }, [displayRoutes, onRouteSelect, globeReady]);
+  }, [displayRoutes, airRoutes, onRouteSelect, globeReady]);
 
   useEffect(() => {
     if (!globeRef.current) return;
@@ -447,10 +493,29 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
       lng: a.lng,
     }));
 
-    const htmlPayload = [...chokeEls, ...vesselEls, ...airEls];
+    const pipeEls = (visiblePipelines || []).map((p) => ({
+      type: 'pipeline_mid',
+      keyId: `pm-${p.id}`,
+      lat: (p.from.lat + p.to.lat) / 2,
+      lng: (p.from.lng + p.to.lng) / 2,
+      name: p.name,
+      commodity: p.commodity || p.type,
+      pipeStatus: p.status,
+    }));
+
+    const railEls = (visibleRail || []).map((r) => ({
+      type: 'rail_mid',
+      keyId: `rm-${r.id}`,
+      lat: (r.from.lat + r.to.lat) / 2,
+      lng: (r.from.lng + r.to.lng) / 2,
+      name: r.name,
+      commodity: r.commodity,
+    }));
+
+    const allHtmlPoints = [...chokeEls, ...vesselEls, ...airEls, ...pipeEls, ...railEls];
 
     globe
-      .htmlElementsData(htmlPayload)
+      .htmlElementsData(allHtmlPoints)
       .htmlLat('lat')
       .htmlLng('lng')
       .htmlAltitude(0.03)
@@ -471,38 +536,80 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
         }
 
         if (d.type === 'vessel') {
-          const color = VESSEL_COLORS[d.vesselType] || '#4488ff';
-          const h = d.heading || 0;
+          el.innerHTML = '🚢';
           el.style.cssText = `
-            width: 0; height: 0;
-            border-left: 3px solid transparent;
-            border-right: 3px solid transparent;
-            border-bottom: 8px solid ${color};
-            transform: rotate(${h}deg);
-            opacity: ${d.simulated ? 0.5 : 0.85};
-            cursor: pointer; pointer-events: auto;
+            font-size: 9px; line-height: 1; cursor: pointer;
+            pointer-events: auto; user-select: none;
+            opacity: ${d.simulated ? 0.6 : 0.9};
           `;
-          el.title = `${d.name} | ${d.vesselType} | ${d.speed != null ? `${d.speed.toFixed(1)} kts` : '?'}`;
+          const spd = d.sog != null ? `${d.sog.toFixed(1)} kn` : d.speed != null ? `${d.speed.toFixed(1)} kn` : '?';
+          el.title = `🚢 ${d.name || d.mmsi} | ${spd}`;
+          el.onclick = (ev) => {
+            ev.stopPropagation();
+            setSelectedTransport({
+              type: 'vessel',
+              icon: '🚢',
+              name: d.name || d.mmsi || 'Unknown Vessel',
+              id: d.mmsi || 'N/A',
+              speed: spd,
+              route: d.label || 'Route-tracked shipment',
+              lat: d.lat,
+              lng: d.lng,
+            });
+          };
           return el;
         }
 
         if (d.type === 'aircraft') {
-          el.innerHTML = '✈';
+          el.innerHTML = '✈️';
           el.style.cssText = `
-            font-size: 10px; color: #ffffff;
-            transform: rotate(${d.heading || 0}deg);
-            opacity: ${d.simulated ? 0.5 : 0.9};
-            cursor: pointer; pointer-events: auto;
-            text-shadow: 0 0 4px #ffffff;
+            font-size: 10px; line-height: 1; cursor: pointer;
+            pointer-events: auto; user-select: none;
+            opacity: ${d.simulated ? 0.6 : 0.9};
           `;
-          const fl = d.altitude != null ? Math.round(d.altitude / 30.48) : '—';
-          el.title = `${d.callsign || 'Cargo'} | ${d.country || ''} | FL${fl}`;
+          const spd = d.velocity != null ? `${d.velocity.toFixed(0)} m/s` : d.speed != null ? `${d.speed.toFixed(0)} kn` : '?';
+          const fl = d.altitude != null ? `FL${Math.round(d.altitude / 30.48)}` : '—';
+          el.title = `✈️ ${d.callsign || d.icao24 || 'Cargo'} | ${spd} | ${fl}`;
+          el.onclick = (ev) => {
+            ev.stopPropagation();
+            setSelectedTransport({
+              type: 'aircraft',
+              icon: '✈️',
+              name: d.callsign || 'Cargo Flight',
+              id: d.icao24 || 'N/A',
+              speed: spd,
+              flightLevel: fl,
+              route: d.label || 'Air-cargo corridor',
+              lat: d.lat,
+              lng: d.lng,
+            });
+          };
+          return el;
+        }
+
+        if (d.type === 'pipeline_mid') {
+          el.innerHTML = '🛢️';
+          el.style.cssText = `
+            font-size: 9px; line-height: 1; cursor: default;
+            pointer-events: auto; user-select: none; opacity: 0.85;
+          `;
+          el.title = `🛢️ ${d.name} (${(d.commodity || '').toUpperCase()}) — ${d.pipeStatus}`;
+          return el;
+        }
+
+        if (d.type === 'rail_mid') {
+          el.innerHTML = '🚂';
+          el.style.cssText = `
+            font-size: 9px; line-height: 1; cursor: default;
+            pointer-events: auto; user-select: none; opacity: 0.85;
+          `;
+          el.title = `🚂 ${d.name} | ${d.commodity}`;
           return el;
         }
 
         return el;
       });
-  }, [chokepoints, eventState, liveVessels, liveAircraft, mapMode, globeReady]);
+  }, [chokepoints, eventState, liveVessels, liveAircraft, mapMode, globeReady, visiblePipelines, visibleRail]);
 
   useEffect(() => {
     if (!globeRef.current) return;
@@ -515,6 +622,10 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
     }, 300);
     return () => clearTimeout(t);
   }, [eventState?.classified?.nearestChokepoint, globeReady]);
+
+  useEffect(() => {
+    if (mapMode === '2d') setSelectedTransport(null);
+  }, [mapMode]);
 
   useEffect(() => {
     if (!containerRef.current || typeof ResizeObserver === 'undefined') return;
@@ -596,6 +707,56 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
           transition: 'opacity 0.3s',
         }}
       />
+
+      {selectedTransport && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 12,
+            bottom: 28,
+            zIndex: 18,
+            width: 'min(320px, calc(100% - 24px))',
+            background: 'rgba(11,17,24,0.95)',
+            border: '1px solid rgba(0,212,255,0.35)',
+            borderRadius: '4px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+            color: '#c8deea',
+            padding: '10px 12px',
+            fontFamily: "'Space Mono', monospace",
+            fontSize: '10px',
+            lineHeight: 1.5,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div style={{ color: '#00d4ff', fontSize: '11px' }}>
+              {selectedTransport.icon} {selectedTransport.name}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedTransport(null)}
+              style={{
+                border: '1px solid #1e2d3d',
+                background: '#0f1822',
+                color: '#8ab0c7',
+                cursor: 'pointer',
+                borderRadius: '2px',
+                fontSize: '10px',
+                padding: '2px 6px',
+                fontFamily: "'Space Mono', monospace",
+              }}
+            >
+              Close
+            </button>
+          </div>
+          <div>ID: {selectedTransport.id}</div>
+          {selectedTransport.flightLevel && <div>Altitude: {selectedTransport.flightLevel}</div>}
+          <div>Speed: {selectedTransport.speed}</div>
+          <div>Route: {selectedTransport.route}</div>
+          <div>
+            Position: {selectedTransport.lat?.toFixed?.(2) ?? selectedTransport.lat}, {selectedTransport.lng?.toFixed?.(2) ?? selectedTransport.lng}
+          </div>
+        </div>
+      )}
 
       {eventState?.raw && (
         <div
