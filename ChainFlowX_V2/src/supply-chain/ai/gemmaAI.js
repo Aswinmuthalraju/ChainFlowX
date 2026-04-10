@@ -103,7 +103,7 @@ Description: ${description}`;
 
     const data = await response.json();
     const rawText = data.choices?.[0]?.message?.content || '';
-    const parsed = safeParseAIJSON(rawText, null);
+    const parsed = safeParseAIJSON(rawText, keywordClassifierFallback(headline, description));
 
     if (!parsed) {
       console.warn('[ChainFlowX Gemma] JSON parse failed — using keyword fallback');

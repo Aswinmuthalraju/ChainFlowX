@@ -170,7 +170,7 @@ export default function RippleScorePanel({ rippleScore }) {
           <EmptyState />
         ) : (
           <div>
-            {Object.entries(rippleScore.derivation).map(([key, data], idx) => (
+            {Object.entries(rippleScore.derivation).filter(([, data]) => data && typeof data === 'object' && 'formula' in data).map(([key, data], idx) => (
               <div key={key} className="mb-3">
                 <div className="flex justify-between items-baseline text-[10px] font-mono mb-1">
                   <div className="flex items-center gap-2">

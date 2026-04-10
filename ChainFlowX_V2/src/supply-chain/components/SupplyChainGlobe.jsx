@@ -7,6 +7,7 @@ import {
   generateGreatCircleArc,
   normalizeLng180,
 } from '../geo/greatCircleArc.js';
+import { getRoutePath } from '../data/simulateTransportOnRoutes.js';
 
 function coordsValid(lat, lng) {
   return (
@@ -64,6 +65,33 @@ function FlatMap2D({
       lngRun += delta;
       const x = ((lngRun + 180) / 360) * W;
       const y = toY(pts[i].lat);
+      d += ` L ${x} ${y}`;
+    }
+    return d.trim();
+  };
+
+  const routeSvgPath = (route) => {
+    if (route.type === 'air') return gcSvgPath(route.from, route.to);
+    
+    const waypoints = getRoutePath(route);
+    let points = [];
+    for (let i = 0; i < waypoints.length - 1; i++) {
+        const seg = generateGreatCircleArc(waypoints[i].lat, waypoints[i].lng, waypoints[i+1].lat, waypoints[i+1].lng, 16, 64);
+        points = points.concat(seg);
+    }
+    
+    if (!points.length) return '';
+    let lngRun = normalizeLng180(points[0].lng);
+    let d = `M ${((lngRun + 180) / 360) * W} ${toY(points[0].lat)}`;
+    for (let i = 1; i < points.length; i++) {
+      const prevN = normalizeLng180(points[i - 1].lng);
+      const currN = normalizeLng180(points[i].lng);
+      let delta = currN - prevN;
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+      lngRun += delta;
+      const x = ((lngRun + 180) / 360) * W;
+      const y = toY(points[i].lat);
       d += ` L ${x} ${y}`;
     }
     return d.trim();
@@ -178,7 +206,7 @@ function FlatMap2D({
           <g key={route.id} style={{ cursor: 'pointer' }} onClick={() => onRouteSelect && onRouteSelect(route)}>
             {isSelected && (
               <path
-                d={gcSvgPath(route.from, routeEnd)}
+                d={routeSvgPath(route)}
                 fill="none"
                 stroke="rgba(0,255,255,0.55)"
                 strokeWidth={arcStroke(route.status) * 2 + 5}
@@ -187,7 +215,7 @@ function FlatMap2D({
             )}
             {(route.status === 'critical' || route.status === 'severe') && (
               <path
-                d={gcSvgPath(route.from, routeEnd)}
+                d={routeSvgPath(route)}
                 fill="none"
                 stroke={arcColor(route.status)}
                 strokeWidth={arcStroke(route.status) + 3}
@@ -195,7 +223,7 @@ function FlatMap2D({
               />
             )}
             <path
-              d={gcSvgPath(route.from, routeEnd)}
+              d={routeSvgPath(route)}
               fill="none"
               stroke={isSelected ? '#00ffff' : arcColor(route.status)}
               strokeWidth={isSelected ? arcStroke(route.status) * 2 : arcStroke(route.status)}
@@ -443,26 +471,26 @@ const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
       ];
 
       const tradePaths = (arcsDataOrdered || []).map((route) => {
-        const lat1 = route.from.lat;
-        const lng1 = route.from.lng;
-        const lat2 = route.to.lat;
-        const lng2 = route.to.lng;
-        const ok =
-          coordsValid(lat1, lng1) &&
-          coordsValid(lat2, lng2);
-        if (!ok) console.warn('Invalid route coordinates:', route.id);
-        else if (import.meta.env.DEV) {
-          console.log('Route start:', route.from.name, lat1, lng1);
-          console.log('Route end:', route.to.name, lat2, lng2);
-        }
-
-        let coords = buildGlobePathCoords3d(lat1, lng1, lat2, lng2, 64, 128);
+        let coords = [];
         if (route.type === 'air') {
-          coords = coords.map(([lat, lng, alt]) => [
+          const lat1 = route.from.lat;
+          const lng1 = route.from.lng;
+          const lat2 = route.to.lat;
+          const lng2 = route.to.lng;
+          const airCoords = buildGlobePathCoords3d(lat1, lng1, lat2, lng2, 64, 128);
+          coords = airCoords.map(([lat, lng, alt]) => [
             lat,
             lng,
             Math.min(0.22, Math.max(0.03, (alt || 0.015) * 2)),
           ]);
+        } else {
+          const points = getRoutePath(route);
+          for (let i = 0; i < points.length - 1; i++) {
+             const segCoords = generateGreatCircleArc(points[i].lat, points[i].lng, points[i+1].lat, points[i+1].lng, 16, 64);
+             segCoords.forEach(p => {
+               coords.push([p.lat, p.lng, 0.005]);
+             });
+          }
         }
 
         return {

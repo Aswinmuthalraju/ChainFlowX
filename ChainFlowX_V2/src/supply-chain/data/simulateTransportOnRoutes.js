@@ -96,12 +96,12 @@ const MARITIME_ROUTE_WAYPOINTS = {
     { lat: 32.0, lng: 122.0 },
   ],
   'DUB-LB-001': [
-    { lat: 30.2, lng: 32.3 },
-    { lat: 12.7, lng: 43.3 },
-    { lat: 6.0, lng: 72.0 },
-    { lat: 9.0, lng: -79.58 },
-    { lat: 20.0, lng: -105.0 },
-    { lat: 33.75, lng: -118.2168 },
+    { lat: 24.5, lng: 58.5 },    // Gulf of Oman (past Hormuz)
+    { lat: 12.7, lng: 43.3 },    // Bab el-Mandeb
+    { lat: 30.2, lng: 32.3 },    // Suez Canal
+    { lat: 36.0, lng: -5.3 },    // Gibraltar
+    { lat: 9.0, lng: -79.58 },   // Panama Canal
+    { lat: 20.0, lng: -105.0 },  // Pacific coast
   ],
   'HOR-ROT-OIL': [
     { lat: 15.0, lng: 64.0 },
@@ -177,11 +177,16 @@ function interpolateGeo(a, b, t) {
   };
 }
 
-function getRoutePath(route) {
-  const basePath = [route.from, ...(route.waypoints || []), route.to].map((pt) => ({ lat: pt.lat, lng: pt.lng }));
-  if (route.type !== 'maritime') return basePath;
+export function getRoutePath(route) {
+  if (route.type !== 'maritime') {
+    return [route.from, ...(route.waypoints || []), route.to].map((pt) => ({ lat: pt.lat, lng: pt.lng }));
+  }
 
-  const routeSpecific = MARITIME_ROUTE_WAYPOINTS[route.id] || [];
+  // Prefer route.waypoints (populated by routes.js ROUTE_WAYPOINTS) over the local table
+  const routeSpecific =
+    route.waypoints && route.waypoints.length > 0
+      ? route.waypoints
+      : MARITIME_ROUTE_WAYPOINTS[route.id] || [];
   const chokepointHints = CHOKEPOINT_WAYPOINTS[route.chokepointId] || [];
   const full = [route.from, ...routeSpecific, ...chokepointHints, route.to].map((pt) => ({ lat: pt.lat, lng: pt.lng }));
 
@@ -192,7 +197,7 @@ function getRoutePath(route) {
       deduped.push(pt);
     }
   }
-  return deduped.length >= 2 ? deduped : basePath;
+  return deduped.length >= 2 ? deduped : [route.from, route.to].map((p) => ({ lat: p.lat, lng: p.lng }));
 }
 
 function pointOnPath(path, t) {

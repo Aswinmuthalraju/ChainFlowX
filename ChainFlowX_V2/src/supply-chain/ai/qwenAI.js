@@ -149,7 +149,7 @@ Based on this data, provide the strategic decision briefing. Be specific. Use th
       .replace(/<think>[\s\S]*?<\/think>/gi, '')
       .trim();
 
-    const result = safeParseAIJSON(rawText, null);
+    const result = safeParseAIJSON(rawText, templateSynthesisFallback(eventState));
 
     if (!result) {
       console.warn('[ChainFlowX Qwen] JSON parse failed — using template fallback');

@@ -92,6 +92,70 @@ export function generateGreatCircleArc(startLat, startLng, endLat, endLng, minPo
 }
 
 /**
+ * Interpolate a position along a multi-segment waypoint path.
+ * Progress t ∈ [0,1] is distributed across segments proportional to angular distance.
+ *
+ * @param {Array<{lat, lng}>} waypoints - ordered array including start and end
+ * @param {number} t - overall progress 0.0 → 1.0
+ * @returns {{ lat: number, lng: number }}
+ */
+export function interpolateAlongWaypoints(waypoints, t) {
+  if (!waypoints || waypoints.length === 0) return null;
+  if (waypoints.length === 1) return waypoints[0];
+  if (t <= 0) return waypoints[0];
+  if (t >= 1) return waypoints[waypoints.length - 1];
+
+  const toRad = (d) => d * Math.PI / 180;
+  const segAngularDist = (a, b) => {
+    const dLat = toRad(b.lat - a.lat);
+    const dLng = toRad(b.lng - a.lng);
+    const x =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  };
+
+  const segments = [];
+  let totalDist = 0;
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const dist = segAngularDist(waypoints[i], waypoints[i + 1]);
+    segments.push({ from: waypoints[i], to: waypoints[i + 1], dist });
+    totalDist += dist;
+  }
+  if (totalDist === 0) return waypoints[0];
+
+  const target = t * totalDist;
+  let accumulated = 0;
+  for (const seg of segments) {
+    if (accumulated + seg.dist >= target) {
+      const segT = seg.dist === 0 ? 0 : (target - accumulated) / seg.dist;
+      return interpolateAlongGreatCircle(seg.from.lat, seg.from.lng, seg.to.lat, seg.to.lng, segT);
+    }
+    accumulated += seg.dist;
+  }
+  return waypoints[waypoints.length - 1];
+}
+
+/**
+ * Generate an array of {lat,lng} points along a waypoint path.
+ * Use instead of generateGreatCircleArc for maritime routes.
+ *
+ * @param {Array<{lat, lng}>} waypoints
+ * @param {number} numPoints
+ * @returns {Array<{lat, lng}>}
+ */
+export function generateWaypointArc(waypoints, numPoints = 100) {
+  if (!waypoints || waypoints.length < 2) return waypoints || [];
+  const points = [];
+  for (let i = 0; i <= numPoints; i++) {
+    const pt = interpolateAlongWaypoints(waypoints, i / numPoints);
+    if (pt) points.push(pt);
+  }
+  return points;
+}
+
+/**
  * Coordinates for three-globe paths: [lat, lng, altitude] with lifted mid-curve.
  */
 export function buildGlobePathCoords3d(startLat, startLng, endLat, endLng, minPoints = 64, maxPoints = 128) {

@@ -1,9 +1,12 @@
+const safe = (v, def = 0) =>
+  (typeof v === 'number' && isFinite(v)) ? v : def;
+
 export function matchDNA(classified, fingerprints) {
   if (!classified) return [];
 
   const results = fingerprints.map(fp => {
     const typeMatch = classified.eventType === fp.type ? 1.0 : 0.0;
-    const sevDelta = 1 - Math.abs((classified.severity || 0.5) - fp.severity);
+    const sevDelta = 1 - Math.abs(safe(classified.severity, 0.5) - safe(fp.severity, 0.5));
     const cpMatch = (classified.nearestChokepoint === fp.chokepointId || classified.nearestChokepoint === fp.chokepoint) ? 1.0 : 0.3;
     const regionMatch = classified.region === fp.region ? 1.0 : 0.5;
 

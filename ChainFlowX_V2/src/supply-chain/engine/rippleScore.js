@@ -55,7 +55,14 @@ export function calculateRippleScore(cascadeDepth, tradeVolumeM, portAbsorption,
       trade: { formula: '(vol/100) × 1.5', value: tradeComp.toFixed(2) },
       absorption: { formula: '(1-cap) × 2.5', value: absorbComp.toFixed(2) },
       time: { formula: '(days/7) × 1.5', value: timeComp.toFixed(2) },
-      commodity: { formula: 'crit × 2.5', value: commComp.toFixed(2) }
+      commodity: { formula: 'crit × 2.5', value: commComp.toFixed(2) },
+      inputs: {
+        cascadeDepth: sCascade,
+        tradeVolumeM: sTrade,
+        portAbsorption: sAbsorb,
+        timeToAlternativeDays: sTime,
+        commodityCriticality: cCrit
+      }
     }
   };
 }

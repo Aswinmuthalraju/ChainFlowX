@@ -1,4 +1,4 @@
-import { interpolateAlongGreatCircle } from '../geo/greatCircleArc.js';
+import { interpolateAlongGreatCircle, interpolateAlongWaypoints } from '../geo/greatCircleArc.js';
 
 const CHOKEPOINT_TO_ID = {
   'Malacca Strait': 'CHKPT-MALACCA',
@@ -30,12 +30,137 @@ const FRACTION_SEED = {
   'SIN-LHR-AIR': 0.4,
 };
 
+/** Maritime waypoints keeping ships in water for each route. */
+export const ROUTE_WAYPOINTS = {
+  'SH-ROT-001': [    // Shanghai → Rotterdam via Malacca + Suez
+    { lat: 22.0,  lng: 113.8  },
+    { lat:  1.26, lng: 103.84 },
+    { lat:  6.0,  lng:  72.0  },
+    { lat: 12.7,  lng:  43.3  },
+    { lat: 30.2,  lng:  32.3  },
+    { lat: 36.0,  lng:  -5.3  },
+  ],
+  'SH-CHN-001': [    // Shanghai → Chennai via Malacca
+    { lat: 22.30, lng: 114.18 },
+    { lat: 10.35, lng: 109.90 },
+    { lat:  1.25, lng: 103.82 },
+    { lat:  5.27, lng:  80.72 },
+  ],
+  'SIN-ROT-001': [   // Singapore → Rotterdam via Suez
+    { lat:  6.0,  lng:  72.0  },
+    { lat: 12.7,  lng:  43.3  },
+    { lat: 30.2,  lng:  32.3  },
+    { lat: 36.0,  lng:  -5.3  },
+  ],
+  'DUB-LB-001': [    // Dubai → Long Beach via Hormuz + Suez + Panama
+    { lat: 24.5,  lng:  58.5  },  // Gulf of Oman (past Hormuz)
+    { lat: 12.7,  lng:  43.3  },  // Bab el-Mandeb
+    { lat: 30.2,  lng:  32.3  },  // Suez Canal
+    { lat: 36.0,  lng:  -5.3  },  // Gibraltar
+    { lat:  9.0,  lng: -79.58 },  // Panama Canal
+    { lat: 20.0,  lng: -105.0 },  // Pacific coast
+  ],
+  'HKG-HAM-001': [   // Hong Kong → Hamburg via Malacca + Suez
+    { lat: 22.0,  lng: 113.8  },
+    { lat:  1.26, lng: 103.84 },
+    { lat:  6.0,  lng:  72.0  },
+    { lat: 12.7,  lng:  43.3  },
+    { lat: 30.2,  lng:  32.3  },
+    { lat: 36.0,  lng:  -5.3  },
+  ],
+  'TOK-NYC-001': [   // Tokyo → New York via Panama (transpacific + canal)
+    { lat: 25.0,  lng: 150.0  },
+    { lat: 15.0,  lng: 175.0  },
+    { lat:  8.0,  lng: -160.0 },
+    { lat:  5.0,  lng:  -85.0 },
+    { lat:  9.08, lng:  -79.68},
+    { lat: 18.0,  lng:  -75.0 },
+    { lat: 32.0,  lng:  -74.0 },
+  ],
+  'SIN-LA-001': [    // Singapore → Los Angeles transpacific
+    { lat:  7.0,  lng: 109.0  },
+    { lat: 15.0,  lng: 130.0  },
+    { lat: 25.0,  lng: 155.0  },
+    { lat: 35.0,  lng: 175.0  },
+    { lat: 38.0,  lng: -155.0 },
+    { lat: 35.0,  lng: -135.0 },
+  ],
+  'SH-SIN-001': [    // Shanghai → Singapore via South China Sea
+    { lat: 25.0,  lng: 118.0  },
+    { lat: 18.0,  lng: 114.0  },
+    { lat: 10.0,  lng: 109.0  },
+    { lat:  1.26, lng: 103.84 },
+  ],
+  'BUS-SH-001': [    // Busan → Shanghai (Yellow Sea)
+    { lat: 34.8,  lng: 126.0  },
+    { lat: 33.4,  lng: 124.0  },
+    { lat: 32.0,  lng: 122.0  },
+  ],
+  'HOR-ROT-OIL': [   // Hormuz → Rotterdam via Suez
+    { lat: 15.0,  lng:  64.0  },
+    { lat: 12.7,  lng:  43.3  },
+    { lat: 30.2,  lng:  32.3  },
+    { lat: 36.0,  lng:  -5.3  },
+  ],
+  'HOR-SIN-LNG': [   // Hormuz → Singapore via Indian Ocean
+    { lat: 18.0,  lng:  64.0  },
+    { lat:  6.0,  lng:  72.0  },
+    { lat:  1.26, lng: 103.84 },
+  ],
+  'PAN-NYC-001': [   // Panama Canal → New York (Caribbean + Atlantic)
+    { lat: 18.0,  lng:  -75.0 },
+    { lat: 25.0,  lng:  -72.0 },
+    { lat: 32.0,  lng:  -74.0 },
+  ],
+  'LB-SH-EMPTY': [   // Long Beach → Shanghai (transpacific westward)
+    { lat: 30.0,  lng: -130.0 },
+    { lat: 32.0,  lng: -150.0 },
+    { lat: 33.0,  lng:  170.0 },
+    { lat: 30.0,  lng:  150.0 },
+  ],
+  'BAB-ROT-001': [   // Bab el-Mandeb → Rotterdam via Suez
+    { lat: 18.0,  lng:  43.0  },
+    { lat: 30.2,  lng:  32.3  },
+    { lat: 36.0,  lng:  -5.3  },
+  ],
+  'CAPE-ALT-001': [  // Bab el-Mandeb → Rotterdam via Cape of Good Hope
+    { lat:  5.0,  lng:  48.0  },
+    { lat: -10.0, lng:  55.0  },
+    { lat: -25.0, lng:  43.0  },
+    { lat: -34.35,lng:  18.5  },
+    { lat: -35.0, lng:   5.0  },
+    { lat: -20.0, lng: -10.0  },
+    { lat:   0.0, lng: -12.0  },
+    { lat:  35.0, lng:  -9.0  },
+    { lat:  45.0, lng:  -8.0  },
+  ],
+  // Air routes: empty — aircraft fly direct great circle (over land is correct)
+  'SH-FRA-AIR':  [],
+  'HKG-LAX-AIR': [],
+  'SIN-LHR-AIR': [],
+};
+
+function buildFullPath(route) {
+  return [
+    { lat: route.from.lat, lng: route.from.lng },
+    ...(route.waypoints || []),
+    { lat: route.to.lat,   lng: route.to.lng   },
+  ];
+}
+
 function withCurrentPosition(route) {
   const fraction = FRACTION_SEED[route.id] ?? 0.25;
   const now = Date.now();
   const totalMs = route.normalTransitHours * 3600 * 1000;
   const departureMs = now - totalMs * fraction;
-  const p = interpolateAlongGreatCircle(route.from.lat, route.from.lng, route.to.lat, route.to.lng, fraction);
+
+  let p;
+  const fullPath = buildFullPath(route);
+  if (route.type !== 'air' && fullPath.length >= 2) {
+    p = interpolateAlongWaypoints(fullPath, fraction) || { lat: route.from.lat, lng: route.from.lng };
+  } else {
+    p = interpolateAlongGreatCircle(route.from.lat, route.from.lng, route.to.lat, route.to.lng, fraction);
+  }
 
   return {
     ...route,
@@ -54,7 +179,7 @@ function withCurrentPosition(route) {
   };
 }
 
-export const ROUTES = [
+const ROUTES_BASE = [
   {
     id: 'SH-ROT-001',
     name: 'Shanghai to Rotterdam',
@@ -451,7 +576,11 @@ export const ROUTES = [
     alternatives: ['SH-FRA-AIR'],
     graphEdges: [],
   },
-].map(withCurrentPosition);
+];
+
+export const ROUTES = ROUTES_BASE.map((route) =>
+  withCurrentPosition({ ...route, waypoints: ROUTE_WAYPOINTS[route.id] || [] })
+);
 
 export const interpolateRoutePosition = (route, currentTime = Date.now()) => {
   const { from, to, normalTransitHours, currentPosition } = route;
@@ -470,7 +599,13 @@ export const interpolateRoutePosition = (route, currentTime = Date.now()) => {
     };
   }
 
-  const point = interpolateAlongGreatCircle(from.lat, from.lng, to.lat, to.lng, fraction);
+  const fullPath = buildFullPath(route);
+  let point;
+  if (route.type !== 'air' && fullPath.length >= 2) {
+    point = interpolateAlongWaypoints(fullPath, fraction) || { lat: from.lat, lng: from.lng };
+  } else {
+    point = interpolateAlongGreatCircle(from.lat, from.lng, to.lat, to.lng, fraction);
+  }
   return {
     ...point,
     fraction,

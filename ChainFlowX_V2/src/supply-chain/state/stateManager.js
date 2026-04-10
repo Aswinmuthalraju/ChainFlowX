@@ -1,3 +1,36 @@
+/*
+ * PIPELINE REGRESSION REFERENCE — do not remove
+ *
+ * Test event: headline = "Major cyclone intensifies near Strait of Malacca — ports at risk"
+ *             description = "Category 4 cyclone approaching Singapore Strait threatening major shipping disruption"
+ *             lat = 1.2, lng = 103.8
+ *
+ * Step 1 — keywordClassifierFallback(headline, description):
+ *   eventType = 'cyclone'  (matches /cyclone/)
+ *   severity  = 0.85       (matches /major/)
+ *   supplyChainRelevance = 0.72
+ *   confidence = 0.15
+ *
+ * Step 2 — validateAndNormalizeClassification(output, 1.2, 103.8):
+ *   nearestChokepoint inferred from lat/lng: 'CHKPT-MALACCA' (distance ≈ 0 km)
+ *
+ * Step 3 — normalizeChokepointToGraphId(null, 1.2, 103.8):
+ *   returns 'CHKPT-MALACCA'
+ *
+ * Step 4 — propagateRipple(graph, 'CHKPT-MALACCA'):
+ *   expected: ≥ 5 routes at depth 1–3
+ *
+ * Step 5 — calculateRippleScore(cascadeDepth, totalVolume, minAbsorption, maxTimeAlt, commodity):
+ *   approximate inputs: cascadeDepth≈3, tradeVolumeM≈500, portAbsorption≈0.3, timeToAlt≈14, commodity='semiconductors'
+ *   expected score ≈ "10.0" (clamped), label = 'CRITICAL'
+ *
+ * Step 6 — matchDNA(classified, DNA_FINGERPRINTS):
+ *   dnaMatch[0].name ≈ 'Malacca Typhoon Pattern'
+ *   dnaMatch[0].similarity ≈ 90% (High Confidence — typeMatch=1.0, cpMatch=1.0)
+ *
+ * Step 7 — getIndustryCascade('CHKPT-MALACCA', rippleRaw, cascadeDepth):
+ *   expected: ≥ 3 industries (semiconductors, electronics, automotive)
+ */
 import { classifyEvent } from '../ai/gemmaAI.js';
 import { keywordClassify, keywordToRawClassification } from '../data/newsKeywordClassifier.js';
 import { propagateRipple } from '../graph/dependencyGraph.js';
