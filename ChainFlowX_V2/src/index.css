@@ -322,13 +322,15 @@ body::before {
 }
 
 .right-sidebar {
-  flex: 3;
+  flex: none;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 10px;
   background: var(--surface);
   border-left: 1px solid var(--border-bright);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -438,8 +440,11 @@ body::before {
   background: rgba(10, 16, 24, 0.65);
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
+  flex-grow: 0;
+  flex-shrink: 0;
+  height: 620px;
+  min-height: 620px;
+  max-height: 620px;
 }
 
 .live-feed-panel-body {
@@ -1317,7 +1322,15 @@ body::before {
   min-height: 0;
 }
 
-.feed-scroll,
+.feed-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #00f5ff transparent;
+}
+
 .dashboard-row--bottom > .panel.ic-panel-body .ic-panel-scroll {
   flex: 1 1 auto;
   min-height: 0;
