@@ -3,7 +3,7 @@ node_modules/
 .pnp
 .pnp.js
 
-# Build and Outputs
+# Build outputs
 dist/
 build/
 out/
@@ -11,16 +11,27 @@ out/
 .cache/
 coverage/
 
-# Python Virtual Environments
+# Environment — never commit real values
+.env
+.env.local
+.env.*.local
+
+# Python
 .venv/
 venv/
 env/
 ENV/
-.env
 __pycache__/
 *.pyc
 
-# IDEs and Editors
+# AI model weights — too large for git
+*.gguf
+*.bin
+
+# Vercel
+.vercel
+
+# IDEs
 .vscode/
 .idea/
 *.suo
@@ -29,7 +40,7 @@ __pycache__/
 *.sln
 *.sw?
 
-# OS generated files
+# OS
 .DS_Store
 .DS_Store?
 ._*

@@ -1,0 +1,63 @@
+/** Demo scenarios. Index 3 = sanctions / Hormuz — not strike. Live feed is primary. */
+export const DEMO_EVENTS = [
+  {
+    id: 'evt-cyclone-bay',
+    label: 'Cyclone — Bay of Bengal',
+    headline: 'Severe Cyclone Approaching Bay of Bengal — Category 4 Storm',
+    description:
+      'A severe cyclonic storm has formed in the Bay of Bengal with wind speeds exceeding 180 km/h. The storm is tracking toward the Malacca Strait approach routes, threatening major shipping lanes. Port of Chennai and Colombo on high alert.',
+    lat: 13.0,
+    lng: 85.0,
+    type: 'cyclone',
+  },
+  {
+    id: 'evt-conflict-redsea',
+    label: 'Conflict — Red Sea',
+    headline: 'Armed Attacks on Commercial Vessels in Red Sea — Bab el-Mandeb Threatened',
+    description:
+      'Multiple commercial vessels have been targeted in the southern Red Sea. Major shipping companies are announcing route diversions around the Cape of Good Hope. Bab el-Mandeb Strait transit suspended by several carriers.',
+    lat: 14.0,
+    lng: 42.5,
+    type: 'conflict',
+  },
+  {
+    id: 'evt-blockage-suez',
+    label: 'Blockage — Suez Canal',
+    headline: 'Ultra-Large Container Vessel Grounds in Suez Canal — Transit Halted',
+    description:
+      'A 400-meter ULCV has run aground in the Suez Canal, blocking both northbound and southbound traffic. Canal Authority estimates 3–7 days for recovery. 200+ vessels already queuing at Port Said and Suez anchorages.',
+    lat: 30.5,
+    lng: 32.3,
+    type: 'blockage',
+  },
+  {
+    id: 'evt-sanctions-hormuz',
+    label: 'Sanctions — Strait of Hormuz',
+    headline: 'New Sanctions Regime Disrupts Tanker Clearance in Strait of Hormuz',
+    description:
+      'A new sanctions package has triggered immediate compliance checks and vessel screening delays across Hormuz-bound energy traffic. Multiple carriers report 24-72 hour holds while insurers reassess risk exposure.',
+    lat: 26.5,
+    lng: 56.5,
+    type: 'sanctions',
+  },
+  {
+    id: 'evt-strike-la',
+    label: 'Strike — LA/Long Beach',
+    headline: 'ILWU Workers Strike at Los Angeles and Long Beach — All Operations Halted',
+    description:
+      'The International Longshore and Warehouse Union has called a full strike at the Ports of Los Angeles and Long Beach. All container operations are suspended. The ports handle 40% of US container imports.',
+    lat: 33.7,
+    lng: -118.2,
+    type: 'strike',
+  },
+  {
+    id: 'evt-earthquake-taiwan',
+    label: 'Earthquake — Taiwan',
+    headline: 'Magnitude 7.4 Earthquake Strikes Taiwan — Port of Kaohsiung Damaged',
+    description:
+      'A powerful earthquake has struck Taiwan, causing significant infrastructure damage. Port of Kaohsiung has suspended operations. TSMC and other semiconductor manufacturers assessing facility damage.',
+    lat: 24.0,
+    lng: 121.5,
+    type: 'earthquake',
+  },
+];

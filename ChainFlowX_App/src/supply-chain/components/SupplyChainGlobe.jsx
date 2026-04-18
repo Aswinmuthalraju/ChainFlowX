@@ -1,0 +1,968 @@
+import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle, useMemo } from 'react';
+import Globe from 'globe.gl';
+import { VESSEL_COLORS } from '../data/transportMaritime.js';
+import { DEFAULT_18_ROUTES } from '../data/default18Routes.js';
+import {
+  buildGlobePathCoords3d,
+  generateGreatCircleArc,
+  normalizeLng180,
+} from '../geo/greatCircleArc.js';
+import { getRoutePath } from '../data/simulateTransportOnRoutes.js';
+
+function coordsValid(lat, lng) {
+  return (
+    typeof lat === 'number' &&
+    typeof lng === 'number' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  );
+}
+
+// ── 2D flat map (SVG equirectangular radar display) ──────────────────────────
+function FlatMap2D({
+  routes,
+  chokepoints,
+  eventState,
+  onRouteSelect,
+  selectedRoute,
+  selectedRouteId = null,
+}) {
+  const W = 1000,
+    H = 500;
+
+  const toX = (lng) => ((normalizeLng180(lng) + 180) / 360) * W;
+  const toY = (lat) => ((90 - lat) / 180) * H;
+
+  const arcColor = (status) => {
+    if (status === 'critical') return '#ff3b3b';
+    if (status === 'severe') return '#ff6b35';
+    if (status === 'warning') return '#ffb800';
+    return '#44cc88';
+  };
+
+  const arcOpacity = (status) =>
+    status === 'critical' ? 0.95 : status === 'severe' ? 0.8 : status === 'warning' ? 0.7 : 0.5;
+
+  const arcStroke = (status) => (status === 'critical' ? 2.5 : status === 'warning' ? 1.8 : 1.2);
+
+  // Build a wrapped SVG path for equirectangular projection, splitting across dateline.
+  const buildWrappedPath = (pts) => {
+    if (!pts.length) return '';
+    const firstX = toX(pts[0].lng);
+    let d = `M ${firstX} ${toY(pts[0].lat)}`;
+    for (let i = 1; i < pts.length; i++) {
+      const prev = pts[i - 1];
+      const curr = pts[i];
+      const prevX = toX(prev.lng);
+      const currX = toX(curr.lng);
+      const currY = toY(curr.lat);
+
+      // If projected jump is too large, split the stroke to avoid wrap artifacts.
+      if (Math.abs(currX - prevX) > W / 2) {
+        d += ` M ${currX} ${currY}`;
+      } else {
+        d += ` L ${currX} ${currY}`;
+      }
+    }
+    return d.trim();
+  };
+
+  const gcSvgPath = (from, to) => {
+    const pts = generateGreatCircleArc(from.lat, from.lng, to.lat, to.lng, 64, 128);
+    return buildWrappedPath(pts);
+  };
+
+  const routeSvgPath = (route) => {
+    if (route.type === 'air') return gcSvgPath(route.from, route.to);
+    
+    const waypoints = getRoutePath(route);
+    let points = [];
+    for (let i = 0; i < waypoints.length - 1; i++) {
+        const seg = generateGreatCircleArc(waypoints[i].lat, waypoints[i].lng, waypoints[i+1].lat, waypoints[i+1].lng, 16, 64);
+        points = points.concat(seg);
+    }
+    
+    return buildWrappedPath(points);
+  };
+
+  const arcPath = (from, to) => {
+    const x1 = toX(from.lng);
+    const y1 = toY(from.lat);
+    const x2 = toX(to.lng);
+    const y2 = toY(to.lat);
+
+    let dLng = to.lng - from.lng;
+    if (dLng > 180) dLng -= 360;
+    if (dLng < -180) dLng += 360;
+
+    const x2eff = x1 + (dLng / 360) * W;
+
+    if (x2eff < 0 || x2eff > W) {
+      // Route crosses the anti-meridian — draw two segments
+      const isRight = x2eff > W;
+      const xEdge1 = isRight ? W : 0;
+      const xEdge2 = isRight ? 0 : W;
+      const frac = Math.abs((xEdge1 - x1) / (x2eff - x1));
+      const yMid = y1 + (y2 - y1) * frac;
+      const cx1 = (x1 + xEdge1) / 2;
+      const cy1 = (y1 + yMid) / 2 - Math.abs(xEdge1 - x1) * 0.15;
+      const cx2 = (xEdge2 + x2) / 2;
+      const cy2 = (yMid + y2) / 2 - Math.abs(x2 - xEdge2) * 0.15;
+      return `M ${x1} ${y1} Q ${cx1} ${cy1} ${xEdge1} ${yMid} M ${xEdge2} ${yMid} Q ${cx2} ${cy2} ${x2} ${y2}`;
+    }
+
+    const cx = (x1 + x2eff) / 2;
+    const dy = Math.abs(x2eff - x1) * 0.18;
+    const cy = (y1 + y2) / 2 - dy;
+    return `M ${x1} ${y1} Q ${cx} ${cy} ${x2eff} ${y2}`;
+  };
+
+  // Convert [[lng, lat], ...] to SVG polygon points string
+  const toPts = (coords) =>
+    coords.map(([lng, lat]) => `${toX(lng).toFixed(1)},${toY(lat).toFixed(1)}`).join(' ');
+
+  // Simplified continent polygons as [lng, lat] pairs - kept for reference but not rendered
+  const CONTINENTS = [
+    // North America
+    [[-165,60],[-130,55],[-124,48],[-117,33],[-110,23],[-83,10],[-77,8],[-80,26],[-75,36],[-70,42],[-60,46],[-52,47],[-60,63],[-80,70],[-100,73],[-140,70],[-165,60]],
+    // South America
+    [[-77,8],[-60,11],[-50,5],[-35,-5],[-38,-23],[-50,-30],[-58,-38],[-67,-56],[-75,-40],[-80,-5],[-77,8]],
+    // Europe
+    [[-9,39],[-5,57],[5,58],[15,69],[25,71],[28,65],[30,60],[37,55],[35,45],[28,41],[26,40],[10,37],[16,38],[2,43],[-2,44],[-9,39]],
+    // Africa
+    [[-13,36],[10,37],[25,31],[35,30],[51,12],[40,-10],[34,-35],[18,-35],[15,-30],[2,4],[-15,9],[-17,15],[-13,36]],
+    // Asia (mainland + Russia)
+    [[26,40],[37,37],[45,30],[56,24],[68,24],[80,8],[92,22],[105,11],[109,12],[120,24],[122,38],[128,38],[130,50],[140,50],[132,72],[100,70],[75,50],[55,55],[37,55],[30,60],[26,40]],
+    // Australia
+    [[113,-22],[130,-12],[145,-15],[150,-38],[130,-37],[114,-34],[113,-22]],
+    // Greenland
+    [[-55,75],[-20,72],[-18,77],[-35,83],[-55,82],[-55,75]],
+  ];
+
+  const latLines = [-60, -30, 0, 30, 60];
+  const lngLines = [-150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150];
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: '100%', height: '100%', display: 'block', background: '#060a0f' }}
+    >
+      <rect x="0" y="0" width={W} height={H} fill="#060a0f" />
+
+      <image
+        href="/textures/earth-topo-bathy.jpg"
+        x="0"
+        y="0"
+        width={W}
+        height={H}
+        preserveAspectRatio="none"
+        opacity="0.75"
+      />
+      <rect x="0" y="0" width={W} height={H} fill="rgba(6,10,15,0.32)" />
+
+      {latLines.map((lat, i) => {
+        const y = toY(lat);
+        return i % 2 === 0
+          ? <rect key={`band${lat}`} x={0} y={y - 41.7} width={W} height={83.3} fill="rgba(9,14,23,0.26)" />
+          : null;
+      })}
+
+      {latLines.map(lat => (
+        <line key={`lat${lat}`} x1={0} y1={toY(lat)} x2={W} y2={toY(lat)} stroke="rgba(152,185,212,0.2)" strokeWidth="0.6" />
+      ))}
+      <line x1={0} y1={toY(0)} x2={W} y2={toY(0)} stroke="rgba(152,185,212,0.34)" strokeWidth="1.2" />
+      {lngLines.map(lng => (
+        <line key={`lng${lng}`} x1={toX(lng)} y1={0} x2={toX(lng)} y2={H} stroke="rgba(152,185,212,0.2)" strokeWidth="0.6" />
+      ))}
+      <line x1={toX(0)} y1={0} x2={toX(0)} y2={H} stroke="rgba(152,185,212,0.34)" strokeWidth="1.2" />
+
+      {latLines.map(lat => (
+        <text key={`llbl${lat}`} x={4} y={toY(lat) - 2} fill="rgba(192,214,230,0.55)" fontSize="8" fontFamily="Space Mono, monospace">
+          {lat > 0 ? `${lat}N` : lat < 0 ? `${Math.abs(lat)}S` : 'EQ'}
+        </text>
+      ))}
+
+      {routes &&
+        routes.map((route) => {
+          // Full corridor from port to port; vessel dot uses currentPosition separately.
+          const routeEnd = route.to;
+          const selId = selectedRouteId ?? selectedRoute?.id ?? null;
+          const isSelected = selId === route.id;
+          const dimOthers = selId != null && !isSelected;
+          const dim = dimOthers ? 0.26 : 1;
+          return (
+          <g key={route.id} style={{ cursor: 'pointer' }} onClick={() => onRouteSelect && onRouteSelect(route)}>
+            {isSelected && (
+              <path
+                d={routeSvgPath(route)}
+                fill="none"
+                stroke="rgba(0,255,255,0.55)"
+                strokeWidth={arcStroke(route.status) * 2 + 5}
+                strokeOpacity={1}
+              />
+            )}
+            {(route.status === 'critical' || route.status === 'severe') && (
+              <path
+                d={routeSvgPath(route)}
+                fill="none"
+                stroke={arcColor(route.status)}
+                strokeWidth={arcStroke(route.status) + 3}
+                strokeOpacity={0.12 * dim}
+              />
+            )}
+            <path
+              d={routeSvgPath(route)}
+              fill="none"
+              stroke={isSelected ? '#00ffff' : arcColor(route.status)}
+              strokeWidth={isSelected ? arcStroke(route.status) * 2 : arcStroke(route.status)}
+              strokeOpacity={isSelected ? 1 : arcOpacity(route.status) * dim}
+              strokeLinecap="round"
+              style={isSelected ? { filter: 'drop-shadow(0 0 8px rgba(0,255,255,0.75))' } : undefined}
+            />
+
+            {route.currentPosition && (
+              <circle
+                cx={toX(route.currentPosition.lng)}
+                cy={toY(route.currentPosition.lat)}
+                r={route.type === 'air' ? 2.2 : 2.8}
+                fill={route.type === 'air' ? '#ff9500' : '#00ffff'}
+                opacity={0.9}
+              />
+            )}
+          </g>
+          );
+        })}
+
+      {routes && routes.map(route => [route.from, route.to]).flat().filter((p, i, arr) =>
+        arr.findIndex(q => q.name === p.name) === i
+      ).map(port => (
+        <circle key={port.name} cx={toX(port.lng)} cy={toY(port.lat)} r={2.5} fill="#0a1420" stroke="#8ad9ff" strokeWidth={0.8} opacity={0.9} />
+      ))}
+
+      {chokepoints &&
+        chokepoints.map((cp) => {
+          const isAffected = eventState?.classified?.nearestChokepoint === cp.id;
+          const cx = toX(cp.lng), cy = toY(cp.lat);
+          return (
+            <g key={cp.id}>
+              {isAffected && (
+                <>
+                  <circle cx={cx} cy={cy} r={10} fill="none" stroke="#ff3b3b" strokeWidth="0.5" opacity="0.3" />
+                  <circle cx={cx} cy={cy} r={6} fill="none" stroke="#ff3b3b" strokeWidth="0.5" opacity="0.5" />
+                </>
+              )}
+              <circle cx={cx} cy={cy} r={isAffected ? 4.5 : 3} fill={isAffected ? '#ff3b3b' : '#00d4ff'} opacity={0.85} />
+              <text
+                x={cx + 6}
+                y={cy + 3}
+                fill={isAffected ? '#ff3b3b' : '#9ec6dd'}
+                fontSize="7"
+                fontFamily="Space Mono, monospace"
+              >
+                {cp.name}
+              </text>
+            </g>
+          );
+        })}
+
+      <text x={4} y={H - 4} fill="rgba(192,214,230,0.5)" fontSize="7" fontFamily="Space Mono, monospace">
+        CHAINFLOWX · REAL-TEXTURE EQUIRECTANGULAR · 2D MODE
+      </text>
+    </svg>
+  );
+}
+
+const CHOKEPOINT_VIEWS = {
+  MALACCA: { lat: 2, lng: 104, alt: 2.2 },
+  SUEZ: { lat: 30, lng: 32, alt: 2.0 },
+  HORMUZ: { lat: 26, lng: 56, alt: 2.0 },
+  PANAMA: { lat: 9, lng: -80, alt: 2.0 },
+  BAB_EL: { lat: 12, lng: 43, alt: 2.2 },
+  RED_SEA: { lat: 20, lng: 38, alt: 2.5 },
+  TAIWAN: { lat: 24, lng: 121, alt: 2.0 },
+};
+
+function getChokepointView(id) {
+  if (!id) return null;
+  const key = id.toUpperCase().replace(/[^A-Z]/g, '_');
+  return CHOKEPOINT_VIEWS[key] ?? null;
+}
+
+function corridorToCoords(corridor) {
+  const pts = [corridor.from, ...(corridor.waypoints || []), corridor.to];
+  return pts.map((p) => [p.lat, p.lng]);
+}
+
+const SupplyChainGlobe = forwardRef(function SupplyChainGlobe(
+  {
+    routes,
+    chokepoints,
+    eventState,
+    onRouteSelect,
+    selectedRouteId: selectedRouteIdProp = null,
+    selectedRoute = null,
+    mapMode,
+    eventRings = [],
+    onGlobeUserInteract,
+    liveVessels = [],
+    liveAircraft = [],
+    visibleRail = [],
+    visiblePipelines = [],
+    airRoutes = [],
+    onGlobeInitError,
+  },
+  ref,
+) {
+  const containerRef = useRef();
+  const globeRef = useRef();
+  const [globeReady, setGlobeReady] = useState(0);
+  const [globeInitFailed, setGlobeInitFailed] = useState(false);
+  const [selectedTransport, setSelectedTransport] = useState(null);
+  const onInteractRef = useRef(onGlobeUserInteract);
+  const onGlobeErrorRef = useRef(onGlobeInitError);
+  useEffect(() => {
+    onInteractRef.current = onGlobeUserInteract;
+  }, [onGlobeUserInteract]);
+  useEffect(() => {
+    onGlobeErrorRef.current = onGlobeInitError;
+  }, [onGlobeInitError]);
+
+  const displayRoutes = useMemo(() => {
+    if (routes && routes.length > 0) return routes;
+    return DEFAULT_18_ROUTES;
+  }, [routes]);
+
+  const arcRoutesForGlobe = useMemo(() => {
+    const dr = displayRoutes || [];
+    const airOnly = (airRoutes || []).filter((a) => !dr.some((r) => r.id === a.id));
+    return [...dr, ...airOnly];
+  }, [displayRoutes, airRoutes]);
+
+  const selId = selectedRouteIdProp ?? selectedRoute?.id ?? null;
+
+  const arcsDataOrdered = useMemo(() => {
+    const base = arcRoutesForGlobe;
+    if (!selId) return base;
+    const selected = base.filter((r) => r.id === selId);
+    const rest = base.filter((r) => r.id !== selId);
+    return [...rest, ...selected];
+  }, [arcRoutesForGlobe, selId]);
+
+  useEffect(() => {
+    if (!selId) return;
+    const found = arcRoutesForGlobe.some((r) => r.id === selId);
+    if (!found) console.warn('Selected route failed render:', selId);
+  }, [selId, arcRoutesForGlobe]);
+
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      pointOfView: (pov, ms) => globeRef.current?.pointOfView(pov, ms),
+      controls: () => globeRef.current?.controls(),
+    }),
+    [],
+  );
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    let globe = null;
+    const onPointer = () => onInteractRef.current?.();
+
+    try {
+      globe = Globe()(container);
+      const w = container.clientWidth || window.innerWidth;
+      const h = container.clientHeight || window.innerHeight;
+
+      globe
+        .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+        .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+        .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+        .showAtmosphere(true)
+        .atmosphereColor('#4466cc')
+        .atmosphereAltitude(0.18)
+        .backgroundColor('rgba(0,0,0,0)')
+        .showGraticules(false)
+        .width(w)
+        .height(h);
+
+      globe.pointOfView({ lat: 10, lng: 80, altitude: 2.2 }, 0);
+
+      const controls = globe.controls();
+      if (controls) {
+        controls.autoRotate = false;
+        controls.autoRotateSpeed = 0;
+        controls.enablePan = false;
+        controls.enableZoom = true;
+        controls.zoomSpeed = 1.4;
+        controls.minDistance = 101;
+        controls.maxDistance = 600;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.1;
+      }
+
+      container.addEventListener('mousedown', onPointer);
+      container.addEventListener('touchstart', onPointer, { passive: true });
+
+      globeRef.current = globe;
+      setGlobeInitFailed(false);
+      setGlobeReady((n) => n + 1);
+
+      const canvas = container.querySelector('canvas');
+    } catch (err) {
+      console.error('[ChainFlowX] Globe failed:', err);
+      setGlobeInitFailed(true);
+      onGlobeErrorRef.current?.();
+      return () => {};
+    }
+
+    return () => {
+      container.removeEventListener('mousedown', onPointer);
+      container.removeEventListener('touchstart', onPointer);
+      try {
+        const renderer = globe?.renderer?.();
+        if (renderer) renderer.dispose();
+      } catch (_) {
+        /* ignore */
+      }
+      if (globe?._destructor) globe._destructor();
+      globeRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!globeRef.current) return;
+    const globe = globeRef.current;
+
+    const dimOthers = selId != null ? 0.22 : 1;
+
+    try {
+      globe.arcsData([]);
+
+      const allStaticPaths = [
+        ...(visiblePipelines || []).map((p) => ({
+          ...p,
+          layerType: 'pipeline',
+          coords: corridorToCoords(p),
+        })),
+        ...(visibleRail || []).map((r) => ({
+          ...r,
+          layerType: 'rail',
+          coords: corridorToCoords(r),
+        })),
+      ];
+
+      const tradePaths = (arcsDataOrdered || []).map((route) => {
+        let coords = [];
+        if (route.type === 'air') {
+          const lat1 = route.from.lat;
+          const lng1 = route.from.lng;
+          const lat2 = route.to.lat;
+          const lng2 = route.to.lng;
+          const airCoords = buildGlobePathCoords3d(lat1, lng1, lat2, lng2, 64, 128);
+          coords = airCoords.map(([lat, lng, alt]) => [
+            lat,
+            lng,
+            Math.min(0.22, Math.max(0.03, (alt || 0.015) * 2)),
+          ]);
+        } else {
+          const points = getRoutePath(route);
+          for (let i = 0; i < points.length - 1; i++) {
+             const segCoords = generateGreatCircleArc(points[i].lat, points[i].lng, points[i+1].lat, points[i+1].lng, 16, 64);
+             segCoords.forEach(p => {
+               coords.push([p.lat, p.lng, 0.005]);
+             });
+          }
+        }
+
+        return {
+          ...route,
+          layerType: 'trade',
+          coords,
+        };
+      });
+
+      const allPaths = [...allStaticPaths, ...tradePaths];
+
+      globe
+        .pathsData(allPaths)
+        .pathPoints((d) => d.coords)
+        .pathPointLat((pt) => pt[0])
+        .pathPointLng((pt) => pt[1])
+        .pathPointAlt((pt) => (Array.isArray(pt) && pt.length > 2 ? pt[2] : 0.004))
+        .pathColor((d) => {
+          if (d.layerType === 'pipeline') {
+            return d.status === 'blocked'
+              ? 'rgba(255,0,0,0.8)'
+              : d.status === 'warning'
+                ? 'rgba(255,100,0,0.6)'
+                : 'rgba(255,68,0,0.35)';
+          }
+          if (d.layerType === 'rail') {
+            return d.status === 'warning' ? 'rgba(255,180,0,0.7)' : 'rgba(255,153,0,0.4)';
+          }
+          if (d.layerType === 'trade') {
+            const selected = selId != null && d.id === selId;
+            const dim = selected ? 1 : dimOthers;
+            if (selected) return `rgba(0,255,255,${0.92 * dim})`;
+            if (d.type === 'air') return `rgba(255,149,0,${0.72 * dim})`;
+            if (d.status === 'critical') return `rgba(255,59,59,${0.88 * dim})`;
+            if (d.status === 'severe') return `rgba(255,107,53,${0.82 * dim})`;
+            if (d.status === 'warning') return `rgba(255,184,0,${0.76 * dim})`;
+            return `rgba(68,204,136,${0.55 * dim})`;
+          }
+          return 'rgba(68,204,136,0.4)';
+        })
+        .pathStroke((d) => {
+          if (d.layerType === 'pipeline') return 0.6;
+          if (d.layerType === 'rail') return 0.8;
+          if (d.layerType === 'trade') {
+            const selected = selId != null && d.id === selId;
+            if (selected) return d.type === 'air' ? 0.9 : 0.88;
+            return d.type === 'air' ? 0.45 : d.status === 'critical' ? 0.9 : d.status === 'warning' ? 0.6 : 0.4;
+          }
+          return 1.2;
+        })
+        .pathDashLength((d) => {
+          if (d.layerType === 'pipeline') return 1.0;
+          if (d.layerType === 'rail') return 0.05;
+          if (d.layerType === 'trade') return d.type === 'air' ? 0.65 : 0.9;
+          return 0.02;
+        })
+        .pathDashGap((d) => {
+          if (d.layerType === 'pipeline') return 0.0;
+          if (d.layerType === 'rail') return 0.03;
+          if (d.layerType === 'trade') return d.type === 'air' ? 6 : 4;
+          return 0.008;
+        })
+        .pathDashAnimateTime((d) => {
+          if (d.layerType === 'pipeline') return 0;
+          if (d.layerType === 'rail') return 200000;
+          if (d.layerType === 'trade') {
+            const selected = selId != null && d.id === selId;
+            if (selected) return 9e15;
+            return d.type === 'air' ? 7000 : d.status === 'critical' ? 1800 : d.status === 'warning' ? 3500 : 5000;
+          }
+          return 100000;
+        })
+        .onPathClick((path, _ev) => {
+          if (path.layerType === 'trade' && onRouteSelect) onRouteSelect(path);
+        })
+        .pathLabel((d) => {
+          if (d.layerType !== 'trade') return '';
+          return `
+        <div style="background:#0b1118;border:1px solid ${d.type === 'air' ? '#ff9500' : '#1e2d3d'};padding:6px 10px;border-radius:2px;font-family:'Space Mono',monospace;font-size:10px;color:#e8f4f8">
+          <div style="color:${d.type === 'air' ? '#ffb35c' : '#00d4ff'};font-weight:700;margin-bottom:3px">${d.type === 'air' ? '✈️ Air Cargo' : d.from.name + ' → ' + d.to.name}</div>
+          <div style="color:#5a7a8a">${d.type === 'air' ? `Planned air route · ${d.commodity || 'cargo'}` : `Risk: ${d.currentRisk?.toFixed(0) ?? d.baseRisk}/100 · ${d.commodity}`}</div>
+        </div>
+      `;
+        });
+    } catch (err) {
+      if (selId) console.warn('Selected route failed render:', selId, err);
+      else console.warn('Failed to render paths:', err);
+    }
+  }, [visibleRail, visiblePipelines, arcsDataOrdered, onRouteSelect, globeReady, selId]);
+
+  useEffect(() => {
+    if (!globeRef.current || !chokepoints) return;
+    const globe = globeRef.current;
+    const affectedId = eventState?.classified?.nearestChokepoint;
+
+    globe.pointsData([]);
+
+    const chokeRing =
+      affectedId != null
+        ? chokepoints.filter((cp) => cp.id === affectedId).map((cp) => ({ ...cp, kind: 'choke', severity: 1 }))
+        : [];
+
+    const evRing = (eventRings || []).map((r) => ({
+      lat: r.lat,
+      lng: r.lng,
+      id: r.id,
+      severity: typeof r.severity === 'number' ? r.severity : 0.65,
+      kind: 'event',
+    }));
+
+    const ringsMerged = [...evRing, ...chokeRing];
+
+    globe
+      .ringsData(ringsMerged)
+      .ringLat((d) => d.lat)
+      .ringLng((d) => d.lng)
+      .ringColor((d) => (d.kind === 'event' ? (d.severity > 0.7 ? '#ff2222' : '#ffaa00') : '#ff3b3b'))
+      .ringMaxRadius((d) => (d.kind === 'event' ? 4 : 4))
+      .ringPropagationSpeed((d) => (d.kind === 'event' ? 2.5 : 2))
+      .ringRepeatPeriod((d) => (d.kind === 'event' ? 800 : 1200));
+  }, [chokepoints, eventState, eventRings, globeReady]);
+
+  useEffect(() => {
+    if (!globeRef.current || mapMode === '2d') {
+      if (globeRef.current) globeRef.current.htmlElementsData([]);
+      return;
+    }
+    if (!chokepoints) return;
+
+    const globe = globeRef.current;
+    const affectedId = eventState?.classified?.nearestChokepoint;
+
+    const chokeEls = chokepoints.map((cp) => ({
+      type: 'chokepoint',
+      id: cp.id,
+      lat: cp.lat,
+      lng: cp.lng,
+      name: cp.name,
+      tradeShare: cp.tradeSharePercent ?? cp.tradeSharePct ?? 0,
+      isAlert: affectedId === cp.id,
+    }));
+
+    const vesselEls = (liveVessels || []).map((v) => ({
+      ...v,
+      type: 'vessel',
+      keyId: `v-${v.mmsi}`,
+      lat: v.lat,
+      lng: v.lng,
+    }));
+
+    const airEls = (liveAircraft || []).map((a) => ({
+      ...a,
+      type: 'aircraft',
+      keyId: `a-${a.icao24}`,
+      lat: a.lat,
+      lng: a.lng,
+    }));
+
+    const pipeEls = (visiblePipelines || []).map((p) => ({
+      type: 'pipeline_mid',
+      keyId: `pm-${p.id}`,
+      lat: (p.from.lat + p.to.lat) / 2,
+      lng: (p.from.lng + p.to.lng) / 2,
+      name: p.name,
+      commodity: p.commodity || p.type,
+      pipeStatus: p.status,
+    }));
+
+    const railEls = (visibleRail || []).map((r) => ({
+      type: 'rail_mid',
+      keyId: `rm-${r.id}`,
+      lat: (r.from.lat + r.to.lat) / 2,
+      lng: (r.from.lng + r.to.lng) / 2,
+      name: r.name,
+      commodity: r.commodity,
+    }));
+
+    const allHtmlPoints = [...chokeEls, ...vesselEls, ...airEls, ...pipeEls, ...railEls];
+
+    globe
+      .htmlElementsData(allHtmlPoints)
+      .htmlLat('lat')
+      .htmlLng('lng')
+      .htmlAltitude(0.03)
+      .htmlElement((d) => {
+        const el = document.createElement('div');
+
+        if (d.type === 'chokepoint') {
+          el.style.cssText = `
+            width: 10px; height: 10px; border-radius: 50%;
+            background: ${d.isAlert ? '#ff2222' : '#00ffff'};
+            box-shadow: 0 0 ${d.isAlert ? '12px #ff2222' : '8px #00ffff'};
+            border: 1px solid ${d.isAlert ? '#ff4444' : '#00ffff'};
+            cursor: pointer; pointer-events: auto;
+            ${d.isAlert ? 'animation: chokePulse 1.5s ease-in-out infinite;' : ''}
+          `;
+          el.title = `${d.name} | ${d.tradeShare}% global trade`;
+          return el;
+        }
+
+        if (d.type === 'vessel') {
+          el.innerHTML = '🚢';
+          el.style.cssText = `
+            font-size: 9px; line-height: 1; cursor: pointer;
+            pointer-events: auto; user-select: none;
+            opacity: ${d.simulated ? 0.6 : 0.9};
+          `;
+          const spd = d.sog != null ? `${d.sog.toFixed(1)} kn` : d.speed != null ? `${d.speed.toFixed(1)} kn` : '?';
+          el.title = `🚢 ${d.name || d.mmsi} | ${spd}`;
+          el.onclick = (ev) => {
+            ev.stopPropagation();
+            setSelectedTransport({
+              type: 'vessel',
+              icon: '🚢',
+              name: d.name || d.mmsi || 'Unknown Vessel',
+              id: d.mmsi || 'N/A',
+              speed: spd,
+              route: d.label || 'Route-tracked shipment',
+              lat: d.lat,
+              lng: d.lng,
+            });
+          };
+          return el;
+        }
+
+        if (d.type === 'aircraft') {
+          el.innerHTML = '✈️';
+          el.style.cssText = `
+            font-size: 10px; line-height: 1; cursor: pointer;
+            pointer-events: auto; user-select: none;
+            opacity: ${d.simulated ? 0.6 : 0.9};
+          `;
+          const spd = d.velocity != null ? `${d.velocity.toFixed(0)} m/s` : d.speed != null ? `${d.speed.toFixed(0)} kn` : '?';
+          const fl = d.altitude != null ? `FL${Math.round(d.altitude / 30.48)}` : '—';
+          el.title = `✈️ ${d.callsign || d.icao24 || 'Cargo'} | ${spd} | ${fl}`;
+          el.onclick = (ev) => {
+            ev.stopPropagation();
+            setSelectedTransport({
+              type: 'aircraft',
+              icon: '✈️',
+              name: d.callsign || 'Cargo Flight',
+              id: d.icao24 || 'N/A',
+              speed: spd,
+              flightLevel: fl,
+              route: d.label || 'Air-cargo corridor',
+              lat: d.lat,
+              lng: d.lng,
+            });
+          };
+          return el;
+        }
+
+        if (d.type === 'pipeline_mid') {
+          el.innerHTML = '🛢️';
+          el.style.cssText = `
+            font-size: 9px; line-height: 1; cursor: default;
+            pointer-events: auto; user-select: none; opacity: 0.85;
+          `;
+          el.title = `🛢️ ${d.name} (${(d.commodity || '').toUpperCase()}) — ${d.pipeStatus}`;
+          return el;
+        }
+
+        if (d.type === 'rail_mid') {
+          el.innerHTML = '🚂';
+          el.style.cssText = `
+            font-size: 9px; line-height: 1; cursor: default;
+            pointer-events: auto; user-select: none; opacity: 0.85;
+          `;
+          el.title = `🚂 ${d.name} | ${d.commodity}`;
+          return el;
+        }
+
+        return el;
+      });
+  }, [chokepoints, eventState, liveVessels, liveAircraft, mapMode, globeReady, visiblePipelines, visibleRail, displayRoutes, onRouteSelect]);
+
+  useEffect(() => {
+    if (!globeRef.current) return;
+    const affectedId = eventState?.classified?.nearestChokepoint;
+    if (!affectedId) return;
+    const view = getChokepointView(affectedId);
+    if (!view) return;
+    const t = setTimeout(() => {
+      globeRef.current?.pointOfView({ lat: view.lat, lng: view.lng, altitude: view.alt }, 1400);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [eventState?.classified?.nearestChokepoint, globeReady]);
+
+  useEffect(() => {
+    if (mapMode === '2d') setSelectedTransport(null);
+  }, [mapMode]);
+
+  useEffect(() => {
+    if (!containerRef.current || typeof ResizeObserver === 'undefined') return;
+
+    const resizeGlobe = () => {
+      if (!containerRef.current || !globeRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      globeRef.current.width(rect.width);
+      globeRef.current.height(rect.height);
+    };
+
+    const observer = new ResizeObserver(() => {
+      resizeGlobe();
+    });
+
+    observer.observe(containerRef.current);
+    resizeGlobe();
+
+    return () => observer.disconnect();
+  }, [globeReady]);
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        minHeight: 0,
+        flex: 1,
+        background: '#060a0f',
+      }}
+    >
+      {globeInitFailed && (
+        <div
+          style={{
+            position: 'absolute',
+            zIndex: 20,
+            top: '40%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            padding: '10px 16px',
+            background: 'rgba(11,17,24,0.95)',
+            border: '1px solid rgba(255,184,0,0.45)',
+            color: '#ffb800',
+            fontFamily: "'Space Mono', monospace",
+            fontSize: '11px',
+            maxWidth: 'min(420px, 92vw)',
+            textAlign: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          Globe unavailable — fallback to 2D mode
+        </div>
+      )}
+
+      {mapMode === '2d' && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 5 }}>
+          <FlatMap2D
+            routes={arcRoutesForGlobe}
+            chokepoints={chokepoints}
+            eventState={eventState}
+            onRouteSelect={onRouteSelect}
+            selectedRoute={selectedRoute}
+            selectedRouteId={selId}
+          />
+        </div>
+      )}
+
+      <div
+        ref={containerRef}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          minHeight: 0,
+          zIndex: 1,
+          opacity: mapMode === '2d' ? 0 : 1,
+          pointerEvents: mapMode === '2d' ? 'none' : 'auto',
+          transition: 'opacity 0.3s',
+        }}
+      />
+
+      {selectedTransport && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 12,
+            bottom: 28,
+            zIndex: 18,
+            width: 'min(320px, calc(100% - 24px))',
+            background: 'rgba(11,17,24,0.95)',
+            border: '1px solid rgba(0,212,255,0.35)',
+            borderRadius: '4px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+            color: '#c8deea',
+            padding: '10px 12px',
+            fontFamily: "'Space Mono', monospace",
+            fontSize: '10px',
+            lineHeight: 1.5,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div style={{ color: '#00d4ff', fontSize: '11px' }}>
+              {selectedTransport.icon} {selectedTransport.name}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedTransport(null)}
+              style={{
+                border: '1px solid #1e2d3d',
+                background: '#0f1822',
+                color: '#8ab0c7',
+                cursor: 'pointer',
+                borderRadius: '2px',
+                fontSize: '10px',
+                padding: '2px 6px',
+                fontFamily: "'Space Mono', monospace",
+              }}
+            >
+              Close
+            </button>
+          </div>
+          <div>ID: {selectedTransport.id}</div>
+          {selectedTransport.flightLevel && <div>Altitude: {selectedTransport.flightLevel}</div>}
+          <div>Speed: {selectedTransport.speed}</div>
+          <div>Route: {selectedTransport.route}</div>
+          <div>
+            Position: {selectedTransport.lat?.toFixed?.(2) ?? selectedTransport.lat}, {selectedTransport.lng?.toFixed?.(2) ?? selectedTransport.lng}
+          </div>
+        </div>
+      )}
+
+      {eventState?.raw && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 12,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(11,17,24,0.92)',
+            border: '1px solid rgba(0,212,255,0.25)',
+            borderRadius: '2px',
+            padding: '5px 14px',
+            fontFamily: "'Space Mono', monospace",
+            fontSize: '10px',
+            color: '#00d4ff',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            pointerEvents: 'none',
+            zIndex: 10,
+            maxWidth: '78%',
+            textAlign: 'center',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {eventState.raw.headline}
+        </div>
+      )}
+
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 28,
+          right: 12,
+          background: 'rgba(11,17,24,0.88)',
+          border: '1px solid #1e2d3d',
+          borderRadius: '2px',
+          padding: '8px 12px',
+          fontFamily: "'Space Mono', monospace",
+          fontSize: '9px',
+          color: '#5a7a8a',
+          backdropFilter: 'blur(8px)',
+          zIndex: 10,
+        }}
+      >
+        <div style={{ color: '#1e2d3d', marginBottom: 5, letterSpacing: '0.15em', fontSize: '8px' }}>ROUTE STATUS</div>
+        {[
+          { color: '#44cc88', label: 'NORMAL' },
+          { color: '#ffb800', label: 'WARNING' },
+          { color: '#ff6b35', label: 'SEVERE' },
+          { color: '#ff3b3b', label: 'CRITICAL' },
+        ].map(({ color, label }) => (
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <div style={{ width: 20, height: 1.5, background: color }} />
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+export default SupplyChainGlobe;
