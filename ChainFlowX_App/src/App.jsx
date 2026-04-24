@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { buildGraph, validateGraph } from './supply-chain/graph/graphUtils.js';
 import { runPipeline, haversineKm } from './supply-chain/state/stateManager.js';
-import { synthesizeStrategicInsight } from './supply-chain/ai/qwenAI.js';
+import { synthesizeStrategicInsight } from './supply-chain/ai/llmSynthesize.js';
 import { PORTS } from './supply-chain/data/ports.js';
 import { ROUTES } from './supply-chain/data/routes.js';
 import { CHOKEPOINTS } from './supply-chain/data/chokepoints.js';

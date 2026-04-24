@@ -163,7 +163,7 @@ export const startVesselTracking = (onVesselUpdate, onStatusChange) => {
     cancel: () => {},
   };
 
-  const key = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_AISSTREAM_KEY : '';
+  const key = '';
   if (!key) {
     ref.kind = 'sim';
     ref.timerId = startSimulatedVesselLoop(onVesselUpdate, onStatusChange);

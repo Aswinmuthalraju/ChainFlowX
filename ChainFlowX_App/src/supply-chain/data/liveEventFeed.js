@@ -1,6 +1,6 @@
 import { keywordClassify } from './newsKeywordClassifier.js';
 import { RSS_FEEDS } from './rssFeedConfig.js';
-import { classifyEvent } from '../ai/gemmaAI.js';
+import { classifyEvent } from '../ai/llmClassify.js';
 
 export const GDELT_QUERY_ROTATION = [
   'shipping disruption port',

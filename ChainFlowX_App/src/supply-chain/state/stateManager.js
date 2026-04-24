@@ -31,7 +31,7 @@
  * Step 7 — getIndustryCascade('CHKPT-MALACCA', rippleRaw, cascadeDepth):
  *   expected: ≥ 3 industries (semiconductors, electronics, automotive)
  */
-import { classifyEvent } from '../ai/gemmaAI.js';
+import { classifyEvent } from '../ai/llmClassify.js';
 import { keywordClassify, keywordToRawClassification } from '../data/newsKeywordClassifier.js';
 import { propagateRipple } from '../graph/dependencyGraph.js';
 import { calculateRouteRisk, updateRouteStatuses } from '../engine/riskScoring.js';
