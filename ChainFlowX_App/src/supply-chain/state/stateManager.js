@@ -296,7 +296,7 @@ export async function runPipeline(event, graph) {
     });
   }
 
-  // Step 8: Layer 5 (Qwen3) NOT called here — on demand from UI only
+  // Step 8: Layer 5 (LLM synthesis) NOT called here — on demand from UI only
 
   return state;
 }

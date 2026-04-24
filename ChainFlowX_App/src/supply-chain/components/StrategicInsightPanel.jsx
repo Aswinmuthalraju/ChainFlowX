@@ -26,7 +26,7 @@ export default function StrategicInsightPanel({ eventState, onGenerateInsight, i
           <h2 className="panel-title mb-0">STRATEGIC INTELLIGENCE</h2>
         </div>
         <div className="bg-cfx-dark border border-cfx-border p-4 text-center" style={{ borderRadius: 2 }}>
-          <div className="text-xs text-gray-500 font-mono mb-1">Qwen3:8B on-device reasoning</div>
+          <div className="text-xs text-gray-500 font-mono mb-1">LLM on-device reasoning</div>
           <div className="text-[10px] text-gray-600 font-mono mb-4 leading-relaxed">
             Actionable decisions · Alternative routes · Cost impact · 7-day forecast · Industry risk windows
           </div>
@@ -49,7 +49,7 @@ export default function StrategicInsightPanel({ eventState, onGenerateInsight, i
                 <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '150ms' }} />
                 <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '300ms' }} />
-                <span>Qwen3 reasoning...</span>
+                <span>LLM reasoning...</span>
               </span>
             ) : 'Generate Strategic Decision Brief'}
           </button>
@@ -61,7 +61,7 @@ export default function StrategicInsightPanel({ eventState, onGenerateInsight, i
   const urg = URGENCY_STYLES[insight.urgency] || URGENCY_STYLES.MODERATE;
   const altRoutes = insight.alternativeRoutes || [];
   const actionItems = insight.actionItems || [];
-  const isLLM = insight._source === 'qwen_llm';
+  const isLLM = insight._source === 'llm_synthesize';
 
   return (
     <div className="panel border-t-2 border-cfx-accent space-y-3">
@@ -73,7 +73,7 @@ export default function StrategicInsightPanel({ eventState, onGenerateInsight, i
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-[8px] font-mono px-1.5 py-0.5 border rounded ${isLLM ? 'border-green-700 text-green-500' : 'border-gray-700 text-gray-500'}`}>
-            {isLLM ? 'QWEN3 LIVE' : 'OFFLINE MODE'}
+            {isLLM ? 'LLM LIVE' : 'OFFLINE MODE'}
           </span>
           <span className={`text-[9px] font-mono px-2 py-0.5 border rounded ${urg.border} ${urg.text} ${urg.pulse ? 'animate-pulse' : ''}`}>
             {insight.urgency}
@@ -159,7 +159,7 @@ export default function StrategicInsightPanel({ eventState, onGenerateInsight, i
         </div>
       )}
 
-      {/* Industry risk countdown (from industryCascade, not from Qwen) */}
+      {/* Industry risk countdown (from industryCascade, not from the LLM layer) */}
       {industryCascade.length > 0 && (
         <div className="bg-cfx-dark border border-cfx-border p-3" style={{ borderRadius: 2 }}>
           <div className="text-[9px] font-mono text-gray-600 uppercase mb-2">Industry Risk Windows</div>
@@ -180,7 +180,7 @@ export default function StrategicInsightPanel({ eventState, onGenerateInsight, i
       )}
 
       <div className="text-[9px] font-mono text-gray-700 text-center pt-1 border-t border-cfx-border">
-        {isLLM ? 'Qwen3:8B · On-device · Zero data egress' : 'Deterministic fallback · Connect Qwen3 for live synthesis'}
+        {isLLM ? 'LLM live · On-device · Zero data egress' : 'Deterministic fallback · Connect an LLM for live synthesis'}
       </div>
     </div>
   );

@@ -31,8 +31,7 @@ export function calculateRouteRisk(affectedRoutes, classifiedEvent, allRoutes) {
     
     // We multiply severity (0-1.0) by 100 to get points
     const additionalRisk = severity * 100 * 1.0 * tFactor;
-    let newScore = route.baseRisk + additionalRisk; // Wait, route is not defined, we use r
-    newScore = r.baseRisk + additionalRisk;
+    const newScore = r.baseRisk + additionalRisk;
     scores[r.id] = Math.min(100, Math.max(0, newScore));
   });
 
