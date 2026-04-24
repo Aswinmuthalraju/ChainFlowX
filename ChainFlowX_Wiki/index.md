@@ -1,11 +1,11 @@
 # ChainFlowX Wiki Index
-_Initialized: 2026-04-19 | Total pages: 13 | Last scan: 2026-04-19 | Last session: 2026-04-19 | App dir: ChainFlowX_App/_
+_Initialized: 2026-04-19 | Updated: 2026-04-24 | Total pages: 14 | App dir: ChainFlowX_App/_
 
 ## Overview
 - [[wiki/overview]] — project synthesis, stack, 6-layer pipeline, entry points
 
 ## Modules
-- [[wiki/modules/ai]] — Gemma4-E4B classify, Qwen3-8B synthesis, DNA matching, industry cascade
+- [[wiki/modules/ai]] — **NEW**: Single OpenAI-compatible LLM client, classify/synthesize models, DNA matching, industry cascade
 - [[wiki/modules/engine]] — runPipeline, rippleScore, altRouteCalc, disruptionMatcher, positionTracker
 - [[wiki/modules/data]] — routes, ports, chokepoints, DNA fingerprints, live event feed, transport simulation
 - [[wiki/modules/components]] — React UI: globe, panels, news ticker, layer controls
@@ -19,7 +19,7 @@ _None yet — no server-side routes (SPA)._
 - [[wiki/schemas/event-state]] — EventState object produced by runPipeline
 
 ## Environment
-- [[wiki/env/config]] — VITE_GEMMA_URL, VITE_QWEN_URL, VITE_AISSTREAM_KEY, VITE_API_BASE
+- [[wiki/env/config]] — **UPDATED**: VITE_LLM_BASE_URL, VITE_LLM_API_KEY, VITE_LLM_CLASSIFY_MODEL, VITE_LLM_SYNTHESIZE_MODEL (unified single endpoint)
 
 ## Patterns & Conventions
 - [[wiki/patterns/pipeline]] — always-fallback pattern, dual-confidence classification, chokepoint normalization, naming conventions
@@ -28,10 +28,11 @@ _None yet — no server-side routes (SPA)._
 _None yet — run WIKI SCAN for CI/CD if added._
 
 ## Testing
-_None yet — one test file found: `ai/__tests__/llmGuard.test.js`._
+_One test file: `ai/__tests__/llmGuard.test.js` (updated for single-LLM client)._
 
 ## Decisions
-- [[wiki/decisions/two-model-llm]] — why Gemma (classify) + Qwen (synthesis) as separate models
+- [[wiki/decisions/single-llm-unification]] — **NEW**: Why unified OpenAI-compatible endpoint vs. dual separate models (Commit 2ba35cb0)
+- [[wiki/decisions/two-model-llm]] — **LEGACY**: Historical decision to use Gemma + Qwen (superseded by single-llm-unification)
 - [[wiki/decisions/pipeline-design]] — 6-layer sequential pipeline rationale
 
 ## Sources (ingested)
