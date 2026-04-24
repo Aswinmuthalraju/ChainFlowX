@@ -6,7 +6,7 @@ describe('LLM 204 guard', () => {
     vi.resetAllMocks();
     Object.assign(import.meta.env, {
       VITE_LLM_BASE_URL: 'http://localhost:11434',
-      VITE_LLM_CLASSIFY_MODEL: 'gemma4:e4b',
+      VITE_LLM_CLASSIFY_MODEL: 'llama3.1:8b',
     });
   });
 
