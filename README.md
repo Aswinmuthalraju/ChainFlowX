@@ -1,6 +1,6 @@
 # ChainFlowX
 
-Real-time global supply chain intelligence platform. Monitors 18 trade routes across maritime and air corridors, classifies live disruption events, and propagates risk scores across a dependency graph to surface actionable routing decisions.
+ChainFlowX is a realtime supply chain intelligence dashboard built for disruption analysis. It ingests live events, classifies risk, propagates impact through a dependency graph, and outputs rerouting guidance with cost and delay implications.
 
 ---
 
@@ -9,10 +9,10 @@ Real-time global supply chain intelligence platform. Monitors 18 trade routes ac
 - **Live event ingestion** — RSS feeds + GDELT news, classified in real time
 - **Ripple Score™** — proprietary cascade risk score (0–10) propagated across the supply chain graph via BFS
 - **Disruption DNA™** — matches live events against a fingerprint library of historical disruptions to predict downstream impact
-- **Dual local AI** — Gemma 4 E4B classifies events (Layer 3); Qwen3:8B synthesizes strategic decisions (Layer 5)
+- **Single OpenAI-compatible AI endpoint** — separate classify/synthesize models behind one client with retry, timeout, and strict JSON parsing
 - **Alternative route calculator** — computes rerouting options with cost delta and delay estimates
 - **Industry cascade** — maps chokepoint exposure to affected industry sectors and companies
-- **3D globe** — interactive globe showing live routes, chokepoints, AIS vessel positions, and cargo aircraft
+- **3D globe** — interactive globe showing routes, chokepoints, and transport overlays
 
 ---
 
@@ -22,12 +22,12 @@ Real-time global supply chain intelligence platform. Monitors 18 trade routes ac
 |-------|------|-------------|
 | 1 | Event Ingest | RSS + GDELT fetch, dedup, rate-limit |
 | 2 | Graph Build | Port/route dependency graph, validated on startup |
-| 3 | AI Classify | Gemma 4 E4B → eventType, severity, chokepoint, confidence |
+| 3 | AI Classify | LLM classify model → eventType, severity, chokepoint, confidence |
 | 4 | Ripple Score™ | BFS cascade through graph, outputs 0–10 score + label |
-| 5 | AI Synthesize | Qwen3:8B → strategic briefing, forecast D+1/3/7, cost impact |
+| 5 | AI Synthesize | LLM synthesize model → strategic briefing, forecast D+1/3/7, cost impact |
 | 6 | UI Render | 3D globe + panels update reactively from pipeline state |
 
-Both AI layers have keyword/template fallbacks — the app is fully functional without Ollama running.
+Both AI layers have deterministic fallbacks, so the app remains functional even when the LLM endpoint is unavailable.
 
 ---
 
@@ -35,8 +35,8 @@ Both AI layers have keyword/template fallbacks — the app is fully functional w
 
 - **Frontend**: React 18, Vite, Tailwind CSS
 - **Globe**: globe.gl (Three.js)
-- **AI**: Ollama (local) — Gemma 4 E4B + Qwen3:8B
-- **Live data**: AISstream.io (ship tracking), OpenSky (aircraft), GDELT + RSS (news)
+- **AI**: Any OpenAI-compatible endpoint (local or hosted)
+- **Live data**: OpenSky (aircraft), GDELT + RSS (news)
 - **API proxies**: Vite dev server middleware (RSS, GDELT); Vercel serverless in production
 
 ---
@@ -46,23 +46,16 @@ Both AI layers have keyword/template fallbacks — the app is fully functional w
 ### Prerequisites
 
 - Node.js 18+
-- [Ollama](https://ollama.com) installed and running locally
+- Optional local model host (for example Ollama or LM Studio)
 
-### 1. Pull AI models
-
-```bash
-ollama pull gemma4:e4b
-ollama pull qwen3:8b
-```
-
-### 2. Install dependencies
+### 1. Install dependencies
 
 ```bash
 cd ChainFlowX_App
 npm install
 ```
 
-### 3. Configure environment
+### 2. Configure environment
 
 ```bash
 cp .env.example .env
@@ -71,20 +64,22 @@ cp .env.example .env
 Edit `.env`:
 
 ```env
-# Point to your local Ollama instance (default port 11434)
-VITE_GEMMA_URL=http://localhost:11434
-VITE_GEMMA_MODEL=gemma4:e4b
+# OpenAI-compatible base URL (local or hosted)
+VITE_LLM_BASE_URL=http://localhost:11434
 
-VITE_QWEN_URL=http://localhost:11434
-VITE_QWEN_MODEL=qwen3:8b
+# Optional key when required by your endpoint
+VITE_LLM_API_KEY=
 
-# Optional — free key from aisstream.io for live ship tracking
-VITE_AISSTREAM_KEY=your_key_here
+# Model used for event classification
+VITE_LLM_CLASSIFY_MODEL=gemma4:e4b
+
+# Model used for strategic synthesis
+VITE_LLM_SYNTHESIZE_MODEL=qwen3:8b
 ```
 
-If both models run on a single Ollama instance (default), both URLs point to `http://localhost:11434`. To run them on separate machines, set each URL to that machine's IP.
+You can point both model keys at the same host and run different models by name.
 
-### 4. Start
+### 3. Start
 
 ```bash
 npm run dev
@@ -92,13 +87,13 @@ npm run dev
 
 App runs at `http://localhost:3000`.
 
-### 5. Build for production
+### 4. Build for production
 
 ```bash
 npm run build
 ```
 
-Deploy the `dist/` folder. Set the same env vars in your hosting platform (Vercel, Render, etc.). Ollama must be reachable from your deployment environment.
+Deploy the `dist/` folder and mirror the same environment variables in your hosting platform.
 
 ---
 
@@ -109,7 +104,7 @@ ChainFlowX_App/
 ├── src/
 │   ├── App.jsx                    # Root — pipeline orchestration, state
 │   ├── supply-chain/
-│   │   ├── ai/                    # AI layer — gemmaAI, qwenAI, DNA matching, industry cascade
+│   │   ├── ai/                    # AI layer — llmClient, llmClassify, llmSynthesize, DNA matching
 │   │   ├── engine/                # Ripple Score, alt route calc, disruption matcher
 │   │   ├── data/                  # Routes, ports, chokepoints, live feeds, transport simulation
 │   │   ├── graph/                 # Dependency graph build + BFS propagation
@@ -132,4 +127,4 @@ ChainFlowX_App/
 
 ## License
 
-Private — all rights reserved.
+AGPL-3.0 (see LICENSE).

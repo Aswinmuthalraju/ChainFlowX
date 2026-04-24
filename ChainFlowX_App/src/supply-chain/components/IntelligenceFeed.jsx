@@ -84,7 +84,7 @@ export default function IntelligenceFeed({ liveEvents = [], feedUpdatedAt = 0, o
       <header className="intelligence-feed-page__header">
         <div>
           <h1>Supply Chain Intelligence Feed</h1>
-          <p>Live WorldMonitor stream: RSS, GDELT, and supply-chain classified events.</p>
+          <p>Live stream from RSS, GDELT, and supply-chain classified events.</p>
         </div>
         <button type="button" onClick={() => void loadFeed()} disabled={loading} className="intelligence-feed-page__refresh">
           {loading ? 'Refreshing...' : 'Refresh'}

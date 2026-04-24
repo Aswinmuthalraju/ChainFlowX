@@ -78,7 +78,7 @@ function dayOfYear(ms) {
   return `${d.getFullYear()}-${Math.floor(diff / 86400000)}`;
 }
 
-/** WorldMonitor-style: prefer lowest tier number (1 = best) when merging */
+/** Prefer lowest tier number (1 = best) when merging */
 function sourceTierRank(t) {
   const n = Number(t);
   return Number.isFinite(n) ? n : 9;

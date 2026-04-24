@@ -1012,7 +1012,7 @@ body::before {
 }
 
 /* ─────────────────────────────────────────────
-   WorldMonitor-style shell (globe + sidebar)
+  App shell (globe + sidebar)
 ───────────────────────────────────────────── */
 .wm-app-root {
   background: #000;
