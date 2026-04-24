@@ -1,12 +1,16 @@
 {
   "name": "chainflowx",
   "version": "1.0.0",
+  "description": "Real-time global supply chain intelligence platform",
+  "author": "ChainFlowX Contributors",
   "private": true,
   "type": "module",
+  "keywords": ["supply-chain", "intelligence", "realtime", "optimization", "logistics"],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "deck.gl": "^8.9.0",
