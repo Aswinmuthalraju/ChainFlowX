@@ -144,4 +144,7 @@ export default defineConfig({
       'three/tsl':    path.resolve('./src/stubs/three-tsl.js'),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1700
+  }
 });

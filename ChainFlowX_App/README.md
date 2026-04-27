@@ -2,12 +2,6 @@
 
 ChainFlowX is a supply chain disruption intelligence system that models how shocks move through 18 global shipping and air cargo routes. It combines graph-based risk scoring, live news ingestion, Disruption DNA matching, and on-demand LLM synthesis into a six-layer pipeline with deterministic fallbacks. Built as a solo portfolio project, it demonstrates how 3D visualization, live monitoring, and structured analysis can coexist in one app without depending on a single model path.
 
-## Demo
-
-![Globe view](docs/screenshots/globe.png)
-
-Globe view of the route network and live disruption overlays.
-
 ## What it does
 
 - Visualizes 18 global supply chain routes on an interactive 3D globe

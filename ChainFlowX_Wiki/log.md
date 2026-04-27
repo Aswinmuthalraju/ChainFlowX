@@ -3,3 +3,4 @@
 ## [2026-04-19] scan | 13 pages created from full codebase scan (V2 src); modules: ai, engine, data, components, graph; schemas: route, event-state; env, patterns, 2 decisions
 ## [2026-04-19] cleanup | deleted ChainFlowX_V1; promoted ChainFlowX_V2 → ChainFlowX_App; removed ngrok (Option B: local Ollama env vars); deleted promptLab.js; cleaned console.log; rewrote README + .gitignore + .env.example
 ## [2026-04-24] session | verified runtime fallback + Ollama path, fixed riskScoring bug, finalized README and verification report
+## [2026-04-27] scan | 5 pages updated: overview (stack/repo stale), ai (promptLab removed, llmMemory layer filter, synthesis cache key), components (4 deleted components removed), data (liveCargoTraffic removed), engine (Layer 5 wording)

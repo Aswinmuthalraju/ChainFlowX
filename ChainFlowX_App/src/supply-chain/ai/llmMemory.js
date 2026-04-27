@@ -15,8 +15,9 @@ class LLMMemory {
     this._eventCount++;
   }
 
-  getContext(maxTurns = MAX_TURNS) {
-    return this._turns
+  getContext(maxTurns = MAX_TURNS, layer) {
+    const filtered = layer ? this._turns.filter(t => t.layer === layer) : this._turns;
+    return filtered
       .slice(-maxTurns * 2)
       .map(({ role, content }) => ({ role, content }));
   }

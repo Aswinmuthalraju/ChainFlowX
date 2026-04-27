@@ -1,5 +1,5 @@
 # Module: Engine
-_Last updated: 2026-04-19 | Verified against code: 2026-04-19_
+_Last updated: 2026-04-27 | Verified against code: 2026-04-27_
 
 ## Purpose
 Core analysis pipeline — risk scoring, ripple propagation, cascade detection, alt-route calculation, position tracking.
@@ -45,5 +45,5 @@ semiconductors/pharmaceuticals = 1.0, oil = 0.9, electronics = 0.85, automotive 
 ## Known gotchas
 - `normalizeChokepointToGraphId` aliases human names ("Suez Canal") to `CHKPT-*` IDs — LLM raw output passes through here
 - `runPipeline` gates on `supplyChainRelevance ≥ 0.35`; live auto-trigger filters at 0.60
-- Layer 5 (Qwen synthesis) is NOT called from `runPipeline` — on-demand only from UI
+- Layer 5 (LLM synthesis) is NOT called from `runPipeline` — on-demand only from UI
 - Pipeline regression reference test case documented at top of stateManager.js

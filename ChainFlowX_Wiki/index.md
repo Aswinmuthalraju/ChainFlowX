@@ -1,5 +1,5 @@
 # ChainFlowX Wiki Index
-_Initialized: 2026-04-19 | Updated: 2026-04-24 | Total pages: 14 | App dir: ChainFlowX_App/_
+_Initialized: 2026-04-19 | Updated: 2026-04-27 | Last scan: 2026-04-27 | Total pages: 14 | App dir: ChainFlowX_App/_
 
 ## Overview
 - [[wiki/overview]] — project synthesis, stack, 6-layer pipeline, entry points

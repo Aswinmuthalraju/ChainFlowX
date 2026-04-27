@@ -1,5 +1,5 @@
 # Module: Data
-_Last updated: 2026-04-19 | Verified against code: 2026-04-19_
+_Last updated: 2026-04-27 | Verified against code: 2026-04-27_
 
 ## Purpose
 Static reference data (routes, ports, chokepoints, DNA fingerprints) + live feed ingestion (GDELT, RSS) + transport simulation.
@@ -19,7 +19,6 @@ Static reference data (routes, ports, chokepoints, DNA fingerprints) + live feed
 - `simulateTransportOnRoutes.js` — `generateShipsOnRoutes`, `generateAircraftOnRoutes`, `advanceSimulatedTransport` — simulated vessel/aircraft positions
 - `transportAir.js`, `transportMaritime.js`, `transportRail.js`, `transportPipeline.js` — static corridor data per transport mode
 - `transportLayerManager.js` — manages which transport layers are active
-- `liveCargoTraffic.js` — cargo traffic data utilities
 
 ## GDELT query rotation
 10 rotating queries covering: shipping disruption, Suez, Malacca, Red Sea, Panama, Hormuz, trade sanctions, cargo seized, port strike, earthquake/typhoon
@@ -28,7 +27,7 @@ Static reference data (routes, ports, chokepoints, DNA fingerprints) + live feed
 critical=6h, high=2h, medium=30m, low=15m, info=5m
 
 ## Known gotchas
-- Transport vessels are **simulated** — AIS stream key is wired but unused
+- Transport vessels are **simulated** — AIS stream key was removed
 - `liveEventFeed.js` has a circuit breaker: 3 consecutive feed failures → 10m cooldown
 - `routes.js` uses `interpolateAlongGreatCircle` / `interpolateAlongWaypoints` for arc rendering
 - Route IDs follow pattern: `SH-ROT-001` (maritime), `SH-FRA-AIR` (air)

@@ -1,5 +1,5 @@
 # Module: Components
-_Last updated: 2026-04-19 | Verified against code: 2026-04-19_
+_Last updated: 2026-04-27 | Verified against code: 2026-04-27_
 
 ## Purpose
 React UI components — globe visualization, analysis panels, live news feed, layout controls.
@@ -16,16 +16,13 @@ React UI components — globe visualization, analysis panels, live news feed, la
 - `IndustryCascadePanel.jsx` — lists at-risk industries + companies + days-to-risk
 - `RouteDetailPanel.jsx` — single route detail: risk score, alt route, cost delta
 - `StrategicRiskOverview.jsx` — high-level risk summary when no route selected
-- `StrategicInsightPanel.jsx` — renders Qwen3 strategic insight output
+- `StrategicInsightPanel.jsx` — renders LLM strategic insight output (Layer 5)
 - `EventTrigger.jsx` — right sidebar: manual event input + "Generate Insight" button + reset
 - `LiveNewsTicker.jsx` — scrollable live news feed; click → triggers pipeline
 - `TickerBar.jsx` — bottom scrolling ticker bar with article headlines
 - `IntelligenceFeed.jsx` — full-page intelligence tab view
 - `RoutesPage.jsx` — full routes list table (Routes tab)
-- `LayerControl.jsx` / `LayerToggle.jsx` — toggles for vessels/aircraft/rail/pipeline layers
-- `FeedStatusPanel.jsx` — feed health/status indicator
-- `PredictionsPanel.jsx` — predictions display panel
-- `TransportLayers.jsx` — renders rail/pipeline overlays
+- `LayerControl.jsx` — toggles for vessels/aircraft/rail/pipeline layers
 - `RouteRiskIndicator.jsx` — per-route risk color indicator
 
 ## Patterns used

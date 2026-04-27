@@ -42,8 +42,8 @@ ChainFlowX has been successfully transformed from a WorldMonitor fork into a sta
 
 **Dead Code**:
 1. `src/supply-chain/ai/openaiCompat.js` (116 lines) — Unreachable fallback for non-existent API layer
-2. `src/supply-chain/data/newsFeed.js` (84 lines) — Deprecated RSS feed (superseded by `liveEventFeed.js`)
-3. `src/supply-chain/geo/liveCargoTraffic.js` (92 lines) — Legacy cargo mock (unused, similar to maritime)
+2. `src/supply-chain/ai/newsFeed.js` (84 lines) — Deprecated RSS feed (superseded by `liveEventFeed.js`)
+3. `src/supply-chain/data/liveCargoTraffic.js` (92 lines) — Legacy cargo mock (unused, similar to maritime)
 4. `src/supply-chain/components/FeedStatusPanel.jsx` (67 lines) — UI stub, no integration
 5. `src/supply-chain/components/LayerToggle.jsx` (54 lines) — Duplicate toggle logic (unused since layer refactor)
 6. `src/supply-chain/components/PredictionsPanel.jsx` (78 lines) — Unreachable component, no routing
@@ -61,17 +61,17 @@ Conclusion: No source code depended on `worldmonitor/` subtree; safe to delete.
 
 ### Files Created (Commit 2)
 
-1. **`src/supply-chain/ai/llmClient.js`** (87 lines)
+1. **`src/supply-chain/ai/llmClient.js`** (152 lines)
    - Purpose: Unified OpenAI-compatible LLM client
    - Features: Config normalization, request/response handling, 3-retry logic, 30s timeout, JSON parsing hardening
    - Used by: `llmClassify.js`, `llmSynthesize.js`
 
-2. **`src/supply-chain/ai/llmClassify.js`** (91 lines)
+2. **`src/supply-chain/ai/llmClassify.js`** (102 lines)
    - Purpose: Event classification layer (6-layer pipeline Layer 3)
    - Replaces: `gemmaAI.js`
    - Features: Keyword fallback, event caching via hash, configurable model
 
-3. **`src/supply-chain/ai/llmSynthesize.js`** (78 lines)
+3. **`src/supply-chain/ai/llmSynthesize.js`** (135 lines)
    - Purpose: Strategic synthesis layer (6-layer pipeline Layer 5)
    - Replaces: `qwenAI.js`
    - Features: Template fallback, model-agnostic design
@@ -97,8 +97,8 @@ Conclusion: No source code depended on `worldmonitor/` subtree; safe to delete.
 ```
 VITE_LLM_BASE_URL=http://localhost:11434
 VITE_LLM_API_KEY=
-VITE_LLM_CLASSIFY_MODEL=gemma4:e4b
-VITE_LLM_SYNTHESIZE_MODEL=qwen3:8b
+VITE_LLM_CLASSIFY_MODEL=llama3.1:8b
+VITE_LLM_SYNTHESIZE_MODEL=llama3.1:8b
 ```
 
 #### Code Import Rewires (Commit 2)
@@ -233,8 +233,8 @@ Four logically independent commits allow surgical rollback and clear git history
 ```bash
 export VITE_LLM_BASE_URL=http://localhost:11434
 export VITE_LLM_API_KEY=
-export VITE_LLM_CLASSIFY_MODEL=gemma4:e4b
-export VITE_LLM_SYNTHESIZE_MODEL=qwen3:8b
+export VITE_LLM_CLASSIFY_MODEL=llama3.1:8b
+export VITE_LLM_SYNTHESIZE_MODEL=llama3.1:8b
 npm run dev
 ```
 

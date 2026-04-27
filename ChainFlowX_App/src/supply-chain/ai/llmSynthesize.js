@@ -49,7 +49,7 @@ export async function synthesizeStrategicInsight(eventState) {
 
   const { classified, rippleScore, dnaMatch, altRoutes, industryCascade, cascadeAlerts, affectedRoutes } = eventState || {};
   const allAlts = Object.values(altRoutes || {});
-  const memoryContext = llmMemory.getContext(4);
+  const memoryContext = llmMemory.getContext(4, 'synthesize');
 
   const promptText = `You are a supply chain strategic intelligence analyst. Your job is to deliver ACTIONABLE decisions - not summaries.
 The operator is looking at a live disruption RIGHT NOW. They need to know: what to do, which routes to switch to, how much it costs, and what happens if they wait.
@@ -118,7 +118,16 @@ Total affected routes: ${affectedRoutes?.length || 0}`;
     maxTokens: 900,
     timeoutMs: 15000,
     retries: 2,
-    cacheKey: buildPromptHash(`${classified?.eventType || 'x'}|${rippleScore?.score || '0'}|${cfg.synthesizeModel}`),
+    cacheKey: buildPromptHash([
+      classified?.eventType || 'x',
+      rippleScore?.score || '0',
+      classified?.nearestChokepoint || '',
+      classified?.region || '',
+      dnaMatch?.[0]?.name || '',
+      String(allAlts.length),
+      String(affectedRoutes?.length || 0),
+      cfg.synthesizeModel,
+    ].join('|')),
     fallback,
     extraBody: { options: { think: false } },
   });
